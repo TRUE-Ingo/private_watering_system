@@ -1,0 +1,29 @@
+[user]
+    name = IngoBoegemann
+    email = i.r.boegemann@gmail.com
+
+[credential]
+    helper = manager-core
+
+[init]
+    defaultBranch = main
+
+[core]
+    autocrlf = true
+    editor = code --wait
+
+[push]
+    default = simple
+    autoSetupRemote = true
+
+[pull]
+    rebase = false
+
+[merge]
+    tool = vscode
+
+[diff]
+    tool = vscode
+
+[github]
+    user = IngoBoegemann 
