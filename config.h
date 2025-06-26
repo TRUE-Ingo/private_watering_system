@@ -22,6 +22,18 @@
 
 #define MOISTURE_SENSOR_PIN A0  // ESP8266 only has one analog pin
 
+// Multiplexer Control Pins for CD74HC4067 (16-channel)
+#define MUX_S0_PIN 12  // D6 on ESP8266 - Channel select bit 0
+#define MUX_S1_PIN 13  // D7 on ESP8266 - Channel select bit 1  
+#define MUX_S2_PIN 14  // D5 on ESP8266 - Channel select bit 2
+#define MUX_S3_PIN 15  // D8 on ESP8266 - Channel select bit 3
+
+// Multiplexer channel assignments for moisture sensors
+#define SENSOR_1_CHANNEL 0
+#define SENSOR_2_CHANNEL 1
+#define SENSOR_3_CHANNEL 2
+#define SENSOR_4_CHANNEL 3
+
 // Optional: Enable debug mode
 #define DEBUG_MODE true
 

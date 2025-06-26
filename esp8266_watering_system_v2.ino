@@ -9,10 +9,14 @@ int IN2 = PUMP_2_PIN;
 int IN3 = PUMP_3_PIN;
 int IN4 = PUMP_4_PIN;
 
-int Pin1 = MOISTURE_SENSOR_PIN;
-int Pin2 = MOISTURE_SENSOR_PIN; // Will be handled by multiplexer or different approach
-int Pin3 = MOISTURE_SENSOR_PIN;
-int Pin4 = MOISTURE_SENSOR_PIN;
+// Multiplexer control pins
+int MUX_S0 = MUX_S0_PIN;
+int MUX_S1 = MUX_S1_PIN;
+int MUX_S2 = MUX_S2_PIN;
+int MUX_S3 = MUX_S3_PIN;
+
+// Analog input pin (connected to multiplexer output)
+int ANALOG_IN = MOISTURE_SENSOR_PIN;
 
 // Sensor values
 float value1 = 0;
@@ -58,7 +62,10 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
   
-  pinMode(Pin1, INPUT);
+  pinMode(MUX_S0, OUTPUT);
+  pinMode(MUX_S1, OUTPUT);
+  pinMode(MUX_S2, OUTPUT);
+  pinMode(MUX_S3, OUTPUT);
   
   // Initialize pumps to OFF state
   digitalWrite(IN1, HIGH);
@@ -137,24 +144,32 @@ void connectToWiFi() {
 }
 
 void readSensors() {
-  // Read from the single analog pin
-  value1 = analogRead(Pin1);
+  // Read from all 4 moisture sensors using the multiplexer
+  value1 = readSensorFromMultiplexer(SENSOR_1_CHANNEL);
+  value2 = readSensorFromMultiplexer(SENSOR_2_CHANNEL);
+  value3 = readSensorFromMultiplexer(SENSOR_3_CHANNEL);
+  value4 = readSensorFromMultiplexer(SENSOR_4_CHANNEL);
+}
+
+// Function to read from a specific multiplexer channel
+int readSensorFromMultiplexer(int channel) {
+  // Set the multiplexer channel selection pins
+  digitalWrite(MUX_S0, (channel & 1) ? HIGH : LOW);      // Bit 0
+  digitalWrite(MUX_S1, (channel & 2) ? HIGH : LOW);      // Bit 1
+  digitalWrite(MUX_S2, (channel & 4) ? HIGH : LOW);      // Bit 2
+  digitalWrite(MUX_S3, (channel & 8) ? HIGH : LOW);      // Bit 3
   
-  // For multiple sensors, you would implement one of these approaches:
-  // 1. Use a multiplexer (CD4051, etc.)
-  // 2. Use digital sensors
-  // 3. Use different ESP8266 boards with multiple analog pins
+  // Small delay to allow multiplexer to settle
+  delayMicroseconds(100);
   
-  // For now, simulate multiple sensors with variations
-  // In production, replace this with actual sensor readings
-  value2 = value1 + random(-30, 30);
-  value3 = value1 + random(-30, 30);
-  value4 = value1 + random(-30, 30);
+  // Read the analog value
+  int sensorValue = analogRead(ANALOG_IN);
   
-  // Ensure values stay within reasonable bounds
-  value2 = constrain(value2, 0, 1023);
-  value3 = constrain(value3, 0, 1023);
-  value4 = constrain(value4, 0, 1023);
+  #if DEBUG_MODE
+  Serial.print("Channel "); Serial.print(channel); Serial.print(": "); Serial.println(sensorValue);
+  #endif
+  
+  return sensorValue;
 }
 
 void printSensorReadings() {
