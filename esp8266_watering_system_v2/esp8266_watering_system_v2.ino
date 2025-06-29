@@ -486,14 +486,30 @@ void sendDataToApi() {
     return;
   }
   
+  #if DEBUG_MODE
+  Serial.println("=== API COMMUNICATION DEBUG ===");
+  Serial.print("WiFi Status: "); Serial.println(WiFi.status());
+  Serial.print("WiFi RSSI: "); Serial.println(WiFi.RSSI());
+  Serial.print("Target URL: "); Serial.println(API_URL);
+  Serial.print("Device ID: "); Serial.println(DEVICE_ID);
+  #endif
+  
   WiFiClient client;
   HTTPClient http;
+  
+  #if DEBUG_MODE
+  Serial.println("Initializing HTTP client...");
+  #endif
+  
   http.begin(client, API_URL);
   http.addHeader("Content-Type", "application/json");
   
   // Add API key if configured
   if (strlen(API_KEY) > 0) {
     http.addHeader("Authorization", API_KEY);
+    #if DEBUG_MODE
+    Serial.println("API Key added to headers");
+    #endif
   }
   
   // Create JSON payload
@@ -542,29 +558,49 @@ void sendDataToApi() {
   serializeJson(doc, jsonString);
   
   #if DEBUG_MODE
-  Serial.println("Sending data to API:");
+  Serial.println("JSON Payload:");
   Serial.println(jsonString);
+  Serial.print("Payload size: "); Serial.print(jsonString.length()); Serial.println(" characters");
+  Serial.println("Sending HTTP POST request...");
   #endif
   
   totalApiCalls++;
   int httpResponseCode = http.POST(jsonString);
   
+  #if DEBUG_MODE
+  Serial.print("HTTP Response code: ");
+  Serial.println(httpResponseCode);
+  #endif
+  
   if (httpResponseCode > 0) {
     String response = http.getString();
     #if DEBUG_MODE
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
     Serial.print("Response: ");
     Serial.println(response);
+    Serial.println("=== API CALL SUCCESSFUL ===");
     #endif
   } else {
     failedApiCalls++;
     #if DEBUG_MODE
     Serial.print("HTTP Error code: ");
     Serial.println(httpResponseCode);
-    Serial.println("API call failed, but device continues to function normally.");
+    Serial.print("Error: ");
+    Serial.println(http.errorToString(httpResponseCode));
+    Serial.println("=== API CALL FAILED ===");
     #endif
   }
   
   http.end();
+  #if DEBUG_MODE
+  Serial.println("HTTP client closed");
+  Serial.println("================================");
+  #endif
+}
+
+// Test function to manually test API connection
+void testApiConnection() {
+  Serial.println("=== MANUAL API TEST ===");
+  Serial.println("Testing API connection...");
+  sendDataToApi();
+  Serial.println("=== API TEST COMPLETE ===");
 } 
