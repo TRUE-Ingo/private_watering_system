@@ -113,9 +113,29 @@ void setup() {
   
   // Run sensor test to diagnose low values
   testSensorsDirectly();
+  
+  // Test API connection on startup
+  testApiConnection();
 }
 
 void loop() {
+  // Check for serial commands
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    
+    if (command == "test") {
+      testApiConnection();
+    } else if (command == "status") {
+      printSensorReadings();
+    } else if (command == "help") {
+      Serial.println("Available commands:");
+      Serial.println("  test   - Test API connection");
+      Serial.println("  status - Show current sensor readings");
+      Serial.println("  help   - Show this help message");
+    }
+  }
+  
   // Check WiFi connection periodically
   if (millis() - lastWiFiCheck > wifiCheckInterval) {
     if (WiFi.status() != WL_CONNECTED) {
