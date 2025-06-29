@@ -18,6 +18,9 @@ int MUX_S3 = MUX_S3_PIN;
 // Analog input pin (connected to multiplexer output)
 int ANALOG_IN = MOISTURE_SENSOR_PIN;
 
+// Water level sensor pin
+int WATER_LEVEL_PIN = WATER_LEVEL_SENSOR_PIN;
+
 // Sensor values
 float value1 = 0;
 float value2 = 0;
@@ -29,6 +32,26 @@ bool pump1Active = false;
 bool pump2Active = false;
 bool pump3Active = false;
 bool pump4Active = false;
+
+// Pump runtime tracking
+unsigned long pump1StartTime = 0;
+unsigned long pump2StartTime = 0;
+unsigned long pump3StartTime = 0;
+unsigned long pump4StartTime = 0;
+
+// Pump cooldown tracking
+unsigned long pump1CooldownEnd = 0;
+unsigned long pump2CooldownEnd = 0;
+unsigned long pump3CooldownEnd = 0;
+unsigned long pump4CooldownEnd = 0;
+
+// Daily pump activation counter
+unsigned long dailyPumpActivations = 0;
+unsigned long lastDailyReset = 0;
+
+// Water level status
+bool waterLevelLow = false;
+bool waterLevelCritical = false;
 
 // Timing variables
 unsigned long lastApiCall = 0;
@@ -67,11 +90,19 @@ void setup() {
   pinMode(MUX_S2, OUTPUT);
   pinMode(MUX_S3, OUTPUT);
   
+  // Configure water level sensor pin if enabled
+  #if WATER_LEVEL_SENSOR_ENABLED
+  pinMode(WATER_LEVEL_PIN, INPUT_PULLUP);
+  #endif
+  
   // Initialize pumps to OFF state
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, HIGH);
+  
+  // Initialize daily reset timer
+  lastDailyReset = millis();
   
   // Connect to WiFi
   connectToWiFi();
@@ -94,10 +125,19 @@ void loop() {
     lastWiFiCheck = millis();
   }
   
+  // Check water level status
+  checkWaterLevel();
+  
+  // Check pump runtime limits
+  checkPumpRuntime();
+  
+  // Reset daily counter if needed
+  resetDailyCounter();
+  
   // Read sensor values
   readSensors();
   
-  // Control pumps based on moisture levels
+  // Control pumps based on moisture levels (with protection)
   controlPump(1, value1, MOISTURE_THRESHOLD);
   controlPump(2, value2, MOISTURE_THRESHOLD);
   controlPump(3, value3, MOISTURE_THRESHOLD);
@@ -197,7 +237,153 @@ void printSensorReadings() {
   Serial.print("Sensor 2: "); Serial.print(value2); Serial.print(" (Pump: "); Serial.print(pump2Active ? "ON" : "OFF"); Serial.println(")");
   Serial.print("Sensor 3: "); Serial.print(value3); Serial.print(" (Pump: "); Serial.print(pump3Active ? "ON" : "OFF"); Serial.println(")");
   Serial.print("Sensor 4: "); Serial.print(value4); Serial.print(" (Pump: "); Serial.print(pump4Active ? "ON" : "OFF"); Serial.println(")");
+  
+  // Display protection status
+  Serial.println("=== PROTECTION STATUS ===");
+  Serial.print("Water Level: "); Serial.println(waterLevelLow ? "LOW" : "OK");
+  Serial.print("Daily Activations: "); Serial.print(dailyPumpActivations); Serial.print("/"); Serial.println(MAX_DAILY_PUMP_ACTIVATIONS);
+  
+  // Display pump runtime information
+  if (pump1Active) {
+    unsigned long runtime = (millis() - pump1StartTime) / 1000;
+    Serial.print("Pump 1 Runtime: "); Serial.print(runtime); Serial.println(" seconds");
+  }
+  if (pump2Active) {
+    unsigned long runtime = (millis() - pump2StartTime) / 1000;
+    Serial.print("Pump 2 Runtime: "); Serial.print(runtime); Serial.println(" seconds");
+  }
+  if (pump3Active) {
+    unsigned long runtime = (millis() - pump3StartTime) / 1000;
+    Serial.print("Pump 3 Runtime: "); Serial.print(runtime); Serial.println(" seconds");
+  }
+  if (pump4Active) {
+    unsigned long runtime = (millis() - pump4StartTime) / 1000;
+    Serial.print("Pump 4 Runtime: "); Serial.print(runtime); Serial.println(" seconds");
+  }
+  
   Serial.println();
+}
+
+// Function to check water level status
+void checkWaterLevel() {
+  #if WATER_LEVEL_SENSOR_ENABLED
+  // Read water level sensor (digital sensor - LOW means water detected)
+  bool waterDetected = digitalRead(WATER_LEVEL_PIN) == LOW;
+  
+  // Update water level status
+  waterLevelLow = !waterDetected;
+  waterLevelCritical = !waterDetected;
+  
+  #if DEBUG_MODE
+  if (waterLevelLow) {
+    Serial.println("WARNING: Water level is LOW - Reservoir may be empty!");
+  }
+  #endif
+  
+  #else
+  // If water level sensor is disabled, assume water is available
+  waterLevelLow = false;
+  waterLevelCritical = false;
+  #endif
+}
+
+// Function to check if pump can be activated (runtime and cooldown protection)
+bool canActivatePump(int pumpNumber) {
+  // Check water level first
+  if (waterLevelCritical) {
+    #if DEBUG_MODE
+    Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": Cannot activate - Water level critical!");
+    #endif
+    return false;
+  }
+  
+  // Check daily activation limit
+  if (dailyPumpActivations >= MAX_DAILY_PUMP_ACTIVATIONS) {
+    #if DEBUG_MODE
+    Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": Cannot activate - Daily limit reached!");
+    #endif
+    return false;
+  }
+  
+  // Check cooldown period
+  unsigned long currentTime = millis();
+  unsigned long cooldownEnd = 0;
+  
+  switch(pumpNumber) {
+    case 1: cooldownEnd = pump1CooldownEnd; break;
+    case 2: cooldownEnd = pump2CooldownEnd; break;
+    case 3: cooldownEnd = pump3CooldownEnd; break;
+    case 4: cooldownEnd = pump4CooldownEnd; break;
+    default: return false;
+  }
+  
+  if (currentTime < cooldownEnd) {
+    #if DEBUG_MODE
+    Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": Cannot activate - In cooldown period!");
+    #endif
+    return false;
+  }
+  
+  return true;
+}
+
+// Function to check pump runtime and enforce limits
+void checkPumpRuntime() {
+  unsigned long currentTime = millis();
+  
+  // Check pump 1 runtime
+  if (pump1Active && (currentTime - pump1StartTime) > MAX_PUMP_RUNTIME) {
+    digitalWrite(IN1, HIGH);
+    pump1Active = false;
+    pump1CooldownEnd = currentTime + PUMP_COOLDOWN_PERIOD;
+    #if DEBUG_MODE
+    Serial.println("Pump 1: Max runtime reached - Deactivated for cooldown");
+    #endif
+  }
+  
+  // Check pump 2 runtime
+  if (pump2Active && (currentTime - pump2StartTime) > MAX_PUMP_RUNTIME) {
+    digitalWrite(IN2, HIGH);
+    pump2Active = false;
+    pump2CooldownEnd = currentTime + PUMP_COOLDOWN_PERIOD;
+    #if DEBUG_MODE
+    Serial.println("Pump 2: Max runtime reached - Deactivated for cooldown");
+    #endif
+  }
+  
+  // Check pump 3 runtime
+  if (pump3Active && (currentTime - pump3StartTime) > MAX_PUMP_RUNTIME) {
+    digitalWrite(IN3, HIGH);
+    pump3Active = false;
+    pump3CooldownEnd = currentTime + PUMP_COOLDOWN_PERIOD;
+    #if DEBUG_MODE
+    Serial.println("Pump 3: Max runtime reached - Deactivated for cooldown");
+    #endif
+  }
+  
+  // Check pump 4 runtime
+  if (pump4Active && (currentTime - pump4StartTime) > MAX_PUMP_RUNTIME) {
+    digitalWrite(IN4, HIGH);
+    pump4Active = false;
+    pump4CooldownEnd = currentTime + PUMP_COOLDOWN_PERIOD;
+    #if DEBUG_MODE
+    Serial.println("Pump 4: Max runtime reached - Deactivated for cooldown");
+    #endif
+  }
+}
+
+// Function to reset daily pump activation counter
+void resetDailyCounter() {
+  unsigned long currentTime = millis();
+  unsigned long oneDay = 86400000; // 24 hours in milliseconds
+  
+  if (currentTime - lastDailyReset > oneDay) {
+    dailyPumpActivations = 0;
+    lastDailyReset = currentTime;
+    #if DEBUG_MODE
+    Serial.println("Daily pump activation counter reset");
+    #endif
+  }
 }
 
 // Test function to read sensors directly without multiplexer
@@ -224,23 +410,28 @@ void testSensorsDirectly() {
 void controlPump(int pumpNumber, float moistureValue, int threshold) {
   int pumpPin;
   bool* pumpStatus;
+  unsigned long* pumpStartTime;
   
   switch(pumpNumber) {
     case 1:
       pumpPin = IN1;
       pumpStatus = &pump1Active;
+      pumpStartTime = &pump1StartTime;
       break;
     case 2:
       pumpPin = IN2;
       pumpStatus = &pump2Active;
+      pumpStartTime = &pump2StartTime;
       break;
     case 3:
       pumpPin = IN3;
       pumpStatus = &pump3Active;
+      pumpStartTime = &pump3StartTime;
       break;
     case 4:
       pumpPin = IN4;
       pumpStatus = &pump4Active;
+      pumpStartTime = &pump4StartTime;
       break;
     default:
       return;
@@ -249,13 +440,22 @@ void controlPump(int pumpNumber, float moistureValue, int threshold) {
   bool shouldActivate = moistureValue > threshold;
   
   if (shouldActivate && !(*pumpStatus)) {
-    // Turning pump ON
-    digitalWrite(pumpPin, LOW);
-    *pumpStatus = true;
-    pumpActivations++;
-    #if DEBUG_MODE
-    Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": ACTIVATED");
-    #endif
+    // Check if pump can be activated (protection mechanisms)
+    if (canActivatePump(pumpNumber)) {
+      // Turning pump ON
+      digitalWrite(pumpPin, LOW);
+      *pumpStatus = true;
+      *pumpStartTime = millis(); // Record start time
+      pumpActivations++;
+      dailyPumpActivations++;
+      #if DEBUG_MODE
+      Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": ACTIVATED");
+      #endif
+    } else {
+      #if DEBUG_MODE
+      Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": Activation blocked by protection");
+      #endif
+    }
   } else if (!shouldActivate && *pumpStatus) {
     // Turning pump OFF
     digitalWrite(pumpPin, HIGH);
@@ -301,6 +501,12 @@ void sendDataToApi() {
   doc["total_api_calls"] = totalApiCalls;
   doc["failed_api_calls"] = failedApiCalls;
   doc["pump_activations"] = pumpActivations;
+  
+  // Add protection status
+  doc["water_level_low"] = waterLevelLow;
+  doc["water_level_critical"] = waterLevelCritical;
+  doc["daily_pump_activations"] = dailyPumpActivations;
+  doc["max_daily_activations"] = MAX_DAILY_PUMP_ACTIVATIONS;
   
   JsonArray sensors = doc.createNestedArray("sensors");
   

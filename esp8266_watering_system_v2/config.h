@@ -22,6 +22,16 @@
 
 #define MOISTURE_SENSOR_PIN A0  // ESP8266 only has one analog pin
 
+// Water Level Sensor Configuration
+#define WATER_LEVEL_SENSOR_PIN 16  // D0 on ESP8266 - Digital water level sensor
+#define WATER_LEVEL_SENSOR_ENABLED false  // Set to false if not using water level sensor
+#define WATER_LEVEL_LOW_THRESHOLD 200  // Analog value threshold for low water (if using analog sensor)
+
+// Pump Runtime Protection
+#define MAX_PUMP_RUNTIME 300000  // Maximum pump runtime: 5 minutes (300,000 ms)
+#define PUMP_COOLDOWN_PERIOD 600000  // Cooldown period after max runtime: 10 minutes (600,000 ms)
+#define MAX_DAILY_PUMP_ACTIVATIONS 50  // Maximum pump activations per day
+
 // Multiplexer Control Pins for CD74HC4067 (16-channel)
 #define MUX_S0_PIN 12  // D6 on ESP8266 - Channel select bit 0
 #define MUX_S1_PIN 13  // D7 on ESP8266 - Channel select bit 1  
