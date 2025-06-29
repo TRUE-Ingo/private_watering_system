@@ -116,6 +116,15 @@ void setup() {
   
   // Test API connection on startup
   testApiConnection();
+  
+  // Test basic connectivity
+  testBasicConnectivity();
+  
+  // Test HTTP connection
+  testHttpConnection();
+  
+  // Test HTTPS GET connection
+  testHttpsGet();
 }
 
 void loop() {
@@ -126,11 +135,20 @@ void loop() {
     
     if (command == "test") {
       testApiConnection();
+    } else if (command == "ping") {
+      testBasicConnectivity();
+    } else if (command == "http") {
+      testHttpConnection();
+    } else if (command == "https") {
+      testHttpsGet();
     } else if (command == "status") {
       printSensorReadings();
     } else if (command == "help") {
       Serial.println("Available commands:");
       Serial.println("  test   - Test API connection");
+      Serial.println("  ping   - Test basic connectivity");
+      Serial.println("  http   - Test HTTP connection");
+      Serial.println("  https  - Test HTTPS GET connection");
       Serial.println("  status - Show current sensor readings");
       Serial.println("  help   - Show this help message");
     }
@@ -514,12 +532,20 @@ void sendDataToApi() {
   Serial.print("Device ID: "); Serial.println(DEVICE_ID);
   #endif
   
-  WiFiClient client;
-  HTTPClient http;
-  
   #if DEBUG_MODE
   Serial.println("Initializing HTTP client...");
   #endif
+  
+  WiFiClientSecure client;
+  HTTPClient http;
+  
+  #if DEBUG_MODE
+  Serial.println("Configuring HTTPS client...");
+  #endif
+  
+  // Configure SSL client for HTTPS
+  client.setInsecure(); // Skip certificate verification
+  client.setTimeout(10000);
   
   http.begin(client, API_URL);
   http.addHeader("Content-Type", "application/json");
@@ -581,16 +607,24 @@ void sendDataToApi() {
   Serial.println("JSON Payload:");
   Serial.println(jsonString);
   Serial.print("Payload size: "); Serial.print(jsonString.length()); Serial.println(" characters");
-  Serial.println("Sending HTTP POST request...");
+  Serial.println("Sending HTTPS POST request...");
   #endif
   
   totalApiCalls++;
+  unsigned long startTime = millis();
+  Serial.println("POST request started...");
+  
   int httpResponseCode = http.POST(jsonString);
   
-  #if DEBUG_MODE
+  unsigned long endTime = millis();
+  Serial.println("POST request completed!");
+  
+  Serial.print("Request completed in: ");
+  Serial.print(endTime - startTime);
+  Serial.println(" ms");
+  
   Serial.print("HTTP Response code: ");
   Serial.println(httpResponseCode);
-  #endif
   
   if (httpResponseCode > 0) {
     String response = http.getString();
@@ -621,6 +655,203 @@ void sendDataToApi() {
 void testApiConnection() {
   Serial.println("=== MANUAL API TEST ===");
   Serial.println("Testing API connection...");
-  sendDataToApi();
+  
+  // Show the exact URL being called
+  Serial.print("Target URL: ");
+  Serial.println(API_URL);
+  
+  // Test basic connectivity first
+  Serial.println("Testing basic connectivity...");
+  WiFiClientSecure client;
+  HTTPClient http;
+  
+  Serial.println("Initializing HTTPS client...");
+  
+  // Configure SSL client
+  client.setInsecure(); // Skip certificate verification for testing
+  client.setTimeout(5000); // Reduced to 5 seconds
+  
+  http.begin(client, API_URL);
+  http.addHeader("Content-Type", "application/json");
+  
+  // Set timeout
+  http.setTimeout(5000); // 5 second timeout
+  
+  // Create a simple test payload
+  DynamicJsonDocument doc(512);
+  doc["test"] = true;
+  doc["device_id"] = DEVICE_ID;
+  doc["timestamp"] = millis();
+  doc["message"] = "API connectivity test from ESP8266";
+  
+  String jsonString;
+  serializeJson(doc, jsonString);
+  
+  Serial.println("Sending test payload:");
+  Serial.println(jsonString);
+  Serial.println("Sending HTTPS POST request...");
+  
+  unsigned long startTime = millis();
+  int httpResponseCode = http.POST(jsonString);
+  unsigned long endTime = millis();
+  
+  Serial.print("Request completed in: ");
+  Serial.print(endTime - startTime);
+  Serial.println(" ms");
+  
+  Serial.print("HTTP Response code: ");
+  Serial.println(httpResponseCode);
+  
+  if (httpResponseCode > 0) {
+    Serial.println("Reading response...");
+    String response = http.getString();
+    Serial.print("Response length: ");
+    Serial.println(response.length());
+    Serial.print("Response: ");
+    Serial.println(response);
+    Serial.println("=== API TEST APPEARS SUCCESSFUL ===");
+  } else {
+    Serial.print("HTTP Error code: ");
+    Serial.println(httpResponseCode);
+    Serial.print("Error: ");
+    Serial.println(http.errorToString(httpResponseCode));
+    Serial.println("=== API TEST FAILED ===");
+  }
+  
+  Serial.println("Closing HTTP client...");
+  http.end();
   Serial.println("=== API TEST COMPLETE ===");
+}
+
+// Test basic connectivity to the domain
+void testBasicConnectivity() {
+  Serial.println("=== BASIC CONNECTIVITY TEST ===");
+  
+  // Extract domain from API_URL
+  String domain = "private-watering-system.onrender.com";
+  Serial.print("Testing connectivity to: ");
+  Serial.println(domain);
+  
+  WiFiClient client;
+  if (client.connect(domain, 80)) {
+    Serial.println("✅ Basic TCP connection successful");
+    
+    // Send a simple HTTP GET request
+    client.println("GET /api/health HTTP/1.1");
+    client.print("Host: ");
+    client.println(domain);
+    client.println("Connection: close");
+    client.println();
+    
+    // Wait for response
+    unsigned long timeout = millis();
+    while (client.available() == 0) {
+      if (millis() - timeout > 5000) {
+        Serial.println("❌ No response received (timeout)");
+        client.stop();
+        return;
+      }
+    }
+    
+    // Read response
+    Serial.println("Response received:");
+    while (client.available()) {
+      String line = client.readStringUntil('\n');
+      Serial.println(line);
+    }
+    
+    client.stop();
+    Serial.println("✅ HTTP connectivity test successful");
+  } else {
+    Serial.println("❌ Failed to connect to domain");
+  }
+  
+  Serial.println("=== CONNECTIVITY TEST COMPLETE ===");
+}
+
+// Test with HTTP instead of HTTPS
+void testHttpConnection() {
+  Serial.println("=== HTTP CONNECTION TEST ===");
+  
+  String httpUrl = "http://private-watering-system.onrender.com/api/health";
+  Serial.print("Testing HTTP URL: ");
+  Serial.println(httpUrl);
+  
+  WiFiClient client;
+  HTTPClient http;
+  
+  Serial.println("Initializing HTTP client...");
+  http.begin(client, httpUrl);
+  http.setTimeout(5000); // 5 second timeout
+  
+  Serial.println("Sending HTTP GET request...");
+  unsigned long startTime = millis();
+  int httpResponseCode = http.GET();
+  unsigned long endTime = millis();
+  
+  Serial.print("Request completed in: ");
+  Serial.print(endTime - startTime);
+  Serial.println(" ms");
+  
+  Serial.print("HTTP Response code: ");
+  Serial.println(httpResponseCode);
+  
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.print("Response: ");
+    Serial.println(response);
+    Serial.println("✅ HTTP test successful");
+  } else {
+    Serial.print("Error: ");
+    Serial.println(http.errorToString(httpResponseCode));
+    Serial.println("❌ HTTP test failed");
+  }
+  
+  http.end();
+  Serial.println("=== HTTP TEST COMPLETE ===");
+}
+
+// Test HTTPS GET connection
+void testHttpsGet() {
+  Serial.println("=== HTTPS GET TEST ===");
+  
+  String httpsUrl = "https://private-watering-system.onrender.com/api/health";
+  Serial.print("Testing HTTPS GET URL: ");
+  Serial.println(httpsUrl);
+  
+  WiFiClientSecure client;
+  HTTPClient http;
+  
+  Serial.println("Initializing HTTPS client...");
+  client.setInsecure();
+  client.setTimeout(5000);
+  
+  http.begin(client, httpsUrl);
+  http.setTimeout(5000);
+  
+  Serial.println("Sending HTTPS GET request...");
+  unsigned long startTime = millis();
+  int httpResponseCode = http.GET();
+  unsigned long endTime = millis();
+  
+  Serial.print("Request completed in: ");
+  Serial.print(endTime - startTime);
+  Serial.println(" ms");
+  
+  Serial.print("HTTP Response code: ");
+  Serial.println(httpResponseCode);
+  
+  if (httpResponseCode > 0) {
+    String response = http.getString();
+    Serial.print("Response: ");
+    Serial.println(response);
+    Serial.println("✅ HTTPS GET test successful");
+  } else {
+    Serial.print("Error: ");
+    Serial.println(http.errorToString(httpResponseCode));
+    Serial.println("❌ HTTPS GET test failed");
+  }
+  
+  http.end();
+  Serial.println("=== HTTPS GET TEST COMPLETE ===");
 } 
