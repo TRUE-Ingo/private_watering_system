@@ -1,0 +1,110 @@
+[
+  {
+    "device_id": "ESP8266_WATERING_SYSTEM_01",
+    "timestamp": 1751192236191,
+    "wifi_rssi": -45,
+    "uptime_seconds": 3600,
+    "total_api_calls": 10,
+    "failed_api_calls": 1,
+    "pump_activations": 5,
+    "sensors": [
+      {
+        "id": 1,
+        "moisture_value": 450,
+        "pump_active": false,
+        "threshold": 580
+      },
+      {
+        "id": 2,
+        "moisture_value": 520,
+        "pump_active": false,
+        "threshold": 580
+      },
+      {
+        "id": 3,
+        "moisture_value": 380,
+        "pump_active": true,
+        "threshold": 580
+      },
+      {
+        "id": 4,
+        "moisture_value": 600,
+        "pump_active": true,
+        "threshold": 580
+      }
+    ],
+    "server_timestamp": "2025-06-29T10:17:34.694Z"
+  },
+  {
+    "device_id": "ESP8266_WATERING_SYSTEM_01",
+    "timestamp": 1751192401166,
+    "wifi_rssi": -45,
+    "uptime_seconds": 3600,
+    "total_api_calls": 10,
+    "failed_api_calls": 1,
+    "pump_activations": 5,
+    "sensors": [
+      {
+        "id": 1,
+        "moisture_value": 450,
+        "pump_active": false,
+        "threshold": 580
+      },
+      {
+        "id": 2,
+        "moisture_value": 520,
+        "pump_active": false,
+        "threshold": 580
+      },
+      {
+        "id": 3,
+        "moisture_value": 380,
+        "pump_active": true,
+        "threshold": 580
+      },
+      {
+        "id": 4,
+        "moisture_value": 600,
+        "pump_active": true,
+        "threshold": 580
+      }
+    ],
+    "server_timestamp": "2025-06-29T10:20:01.260Z"
+  },
+  {
+    "device_id": "ESP8266_WATERING_SYSTEM_01",
+    "timestamp": 1751192825778,
+    "wifi_rssi": -45,
+    "uptime_seconds": 3600,
+    "total_api_calls": 10,
+    "failed_api_calls": 1,
+    "pump_activations": 5,
+    "sensors": [
+      {
+        "id": 1,
+        "moisture_value": 450,
+        "pump_active": false,
+        "threshold": 580
+      },
+      {
+        "id": 2,
+        "moisture_value": 520,
+        "pump_active": false,
+        "threshold": 580
+      },
+      {
+        "id": 3,
+        "moisture_value": 380,
+        "pump_active": true,
+        "threshold": 580
+      },
+      {
+        "id": 4,
+        "moisture_value": 600,
+        "pump_active": true,
+        "threshold": 580
+      }
+    ],
+    "server_timestamp": "2025-06-29T10:27:05.891Z"
+  }
+]

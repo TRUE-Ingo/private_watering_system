@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://private-watering-system.onrender.com/api';
 
 // Sample data that matches ESP8266 format
 const sampleData = {

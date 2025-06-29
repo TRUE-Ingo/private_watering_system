@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watering System Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .sensor-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #4CAF50;
+        }
+
+        .sensor-card.dry {
+            border-left-color: #FF5722;
+        }
+
+        .sensor-card.watering {
+            border-left-color: #2196F3;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .sensor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .sensor-id {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .moisture-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .moisture-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF5722, #FF9800, #4CAF50);
+            transition: width 0.3s ease;
+        }
+
+        .moisture-value {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .pump-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .pump-active {
+            background: #2196F3;
+            color: white;
+        }
+
+        .pump-inactive {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .refresh-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #45a049;
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.98);
+        }
+
+        .last-updated {
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌱 Watering System</h1>
+            <p>Real-time monitoring dashboard</p>
+        </div>
+
+        <button class="refresh-btn" onclick="loadData()">
+            🔄 Refresh Data
+        </button>
+
+        <div id="loading" class="loading">
+            Loading data...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="content" style="display: none;">
+            <div class="status-card">
+                <h3>📊 Current Status</h3>
+                <div id="current-status">
+                    <!-- Current status will be loaded here -->
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>📈 System Statistics</h3>
+                <div class="stats-grid" id="stats">
+                    <!-- Stats will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated" id="last-updated">
+            Last updated: Never
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+        
+        async function loadData() {
+            const loading = document.getElementById('loading');
+            const content = document.getElementById('content');
+            const error = document.getElementById('error');
+            
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            error.style.display = 'none';
+            
+            try {
+                // Load current status
+                const statusResponse = await fetch(`${API_BASE}/current-status`);
+                const statusData = await statusResponse.json();
+                
+                // Load stats
+                const statsResponse = await fetch(`${API_BASE}/stats`);
+                const statsData = await statsResponse.json();
+                
+                if (statusData.success) {
+                    displayCurrentStatus(statusData.current_status);
+                }
+                
+                if (statsData.success) {
+                    displayStats(statsData.stats);
+                }
+                
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${new Date().toLocaleString()}`;
+                
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                
+            } catch (err) {
+                console.error('Error loading data:', err);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = 'Failed to load data. Please check your connection and try again.';
+            }
+        }
+        
+        function displayCurrentStatus(status) {
+            const container = document.getElementById('current-status');
+            
+            if (!status) {
+                container.innerHTML = '<p>No data available yet. Send some data from your ESP8266!</p>';
+                return;
+            }
+            
+            const sensorsHtml = status.sensors.map(sensor => {
+                const moisturePercent = Math.max(0, Math.min(100, (sensor.moisture_value / 1023) * 100));
+                const isDry = sensor.moisture_value > sensor.threshold;
+                const isWatering = sensor.pump_active;
+                
+                let cardClass = 'sensor-card';
+                if (isWatering) cardClass += ' watering';
+                else if (isDry) cardClass += ' dry';
+                
+                return `
+                    <div class="${cardClass}">
+                        <div class="sensor-header">
+                            <span class="sensor-id">Sensor ${sensor.id}</span>
+                            <span class="pump-status ${sensor.pump_active ? 'pump-active' : 'pump-inactive'}">
+                                ${sensor.pump_active ? '💧 Watering' : '⏸️ Idle'}
+                            </span>
+                        </div>
+                        <div class="moisture-bar">
+                            <div class="moisture-fill" style="width: ${moisturePercent}%"></div>
+                        </div>
+                        <div class="moisture-value">
+                            Moisture: ${sensor.moisture_value} (${moisturePercent.toFixed(1)}%)
+                        </div>
+                        <div class="moisture-value">
+                            Threshold: ${sensor.threshold}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = `
+                <div class="sensor-grid">
+                    ${sensorsHtml}
+                </div>
+                <p><strong>Device:</strong> ${status.device_id}</p>
+                <p><strong>WiFi Signal:</strong> ${status.wifi_rssi || 'N/A'} dBm</p>
+                <p><strong>Uptime:</strong> ${formatUptime(status.uptime_seconds)}</p>
+            `;
+        }
+        
+        function displayStats(stats) {
+            const container = document.getElementById('stats');
+            
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.total_api_calls}</div>
+                    <div class="stat-label">Total API Calls</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.pump_activations}</div>
+                    <div class="stat-label">Pump Activations</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.failed_api_calls}</div>
+                    <div class="stat-label">Failed Calls</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.total_api_calls > 0 ? ((stats.total_api_calls - stats.failed_api_calls) / stats.total_api_calls * 100).toFixed(1) : 0}%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            `;
+        }
+        
+        function formatUptime(seconds) {
+            if (!seconds) return 'N/A';
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            } else {
+                return `${minutes}m`;
+            }
+        }
+        
+        // Load data on page load
+        loadData();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html> 

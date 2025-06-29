@@ -155,7 +155,22 @@ Update your ESP8266 `config.h` file:
 
 ## Deployment
 
-### Railway (Recommended - Free Tier)
+### Render (Recommended - Free Tier)
+
+1. Create account at [render.com](https://render.com)
+2. Create new Web Service
+3. Connect your GitHub repository
+4. Set build command: `npm install`
+5. Set start command: `npm start`
+6. Get your deployment URL
+
+**Free Tier Includes:**
+- 750 hours/month
+- 512MB RAM
+- Shared CPU
+- Automatic HTTPS
+
+### Railway (Alternative - Free Tier)
 
 1. Create account at [railway.app](https://railway.app)
 2. Connect your GitHub repository
@@ -165,21 +180,6 @@ Update your ESP8266 `config.h` file:
 
 **Free Tier Includes:**
 - 500 hours/month
-- 512MB RAM
-- Shared CPU
-- Automatic HTTPS
-
-### Render (Free Tier)
-
-1. Create account at [render.com](https://render.com)
-2. Create new Web Service
-3. Connect your repository
-4. Set build command: `npm install`
-5. Set start command: `npm start`
-6. Get your deployment URL
-
-**Free Tier Includes:**
-- 750 hours/month
 - 512MB RAM
 - Shared CPU
 - Automatic HTTPS
@@ -214,10 +214,75 @@ For testing with ESP8266 before deployment:
 
 | Platform | Free Tier | Pros | Cons |
 |----------|-----------|------|------|
+| **Render** | 750h/month | More hours, reliable, easy setup | Slower cold starts |
 | **Railway** | 500h/month | Easy setup, good docs | Limited hours |
-| **Render** | 750h/month | More hours, reliable | Slower cold starts |
 | **Vercel** | Unlimited | Fast, great performance | Serverless only |
 | **ngrok** | 1 tunnel | Perfect for testing | Not for production |
+
+## Smartphone Access Options
+
+Now that your backend API is deployed, here are easy ways to access your watering system data from your smartphone:
+
+### Option 1: Web Dashboard (Recommended - Easiest)
+
+Your API now includes a mobile-friendly web dashboard! Simply visit:
+
+```
+https://your-app-name.onrender.com
+```
+
+**Features:**
+- 📱 Mobile-optimized design
+- 🔄 Auto-refresh every 30 seconds
+- 📊 Real-time sensor data visualization
+- 💧 Pump status indicators
+- 📈 System statistics
+- 🌙 Dark mode friendly
+
+**How to use:**
+1. Open your smartphone browser
+2. Navigate to your Render URL
+3. Bookmark the page for easy access
+4. Add to home screen for app-like experience
+
+### Option 2: API Testing Apps
+
+Use API testing apps to directly call your endpoints:
+
+**Popular Apps:**
+- **Postman** (iOS/Android)
+- **Insomnia** (iOS/Android)
+- **REST Client** (Android)
+
+**Test these endpoints:**
+- `GET /api/health` - Check if API is running
+- `GET /api/current-status` - Get latest sensor data
+- `GET /api/stats` - View system statistics
+
+### Option 3: Simple Browser Bookmark
+
+Create bookmarks for direct API access:
+
+```
+https://your-app-name.onrender.com/api/current-status
+https://your-app-name.onrender.com/api/stats
+```
+
+### Option 4: Custom Mobile App (Advanced)
+
+For a more native experience, you could build a simple mobile app using:
+- **React Native**
+- **Flutter**
+- **Progressive Web App (PWA)**
+
+## Quick Setup
+
+1. **Deploy your updated backend** (includes the dashboard)
+2. **Visit your Render URL** on your smartphone
+3. **Bookmark the page** for easy access
+4. **Test with your ESP8266** to see real data
+
+The web dashboard is the easiest solution - no app installation required, works on any device with a browser!
 
 ## Testing
 
