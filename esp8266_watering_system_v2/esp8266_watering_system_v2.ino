@@ -77,6 +77,8 @@ void setup() {
   Serial.print("API Send Interval: ");
   Serial.print(API_SEND_INTERVAL / 1000);
   Serial.println(" seconds");
+  Serial.println("Reading Cycle: 10 seconds");
+  Serial.println("Pump Runtime: 10 seconds per cycle");
   #endif
   
   // Configure pins
@@ -154,7 +156,7 @@ void loop() {
     lastApiCall = millis();
   }
   
-  delay(1000);
+  delay(10000); // Changed from 1000ms to 10000ms (10 seconds)
 }
 
 void connectToWiFi() {
@@ -232,7 +234,7 @@ int readSensorFromMultiplexer(int channel) {
 }
 
 void printSensorReadings() {
-  Serial.println("=== MOISTURE SENSOR READINGS ===");
+  Serial.println("=== MOISTURE SENSOR READINGS (10s cycle) ===");
   Serial.print("Sensor 1: "); Serial.print(value1); Serial.print(" (Pump: "); Serial.print(pump1Active ? "ON" : "OFF"); Serial.println(")");
   Serial.print("Sensor 2: "); Serial.print(value2); Serial.print(" (Pump: "); Serial.print(pump2Active ? "ON" : "OFF"); Serial.println(")");
   Serial.print("Sensor 3: "); Serial.print(value3); Serial.print(" (Pump: "); Serial.print(pump3Active ? "ON" : "OFF"); Serial.println(")");
@@ -261,6 +263,7 @@ void printSensorReadings() {
     Serial.print("Pump 4 Runtime: "); Serial.print(runtime); Serial.println(" seconds");
   }
   
+  Serial.println("--- Next reading in 10 seconds ---");
   Serial.println();
 }
 
@@ -449,7 +452,7 @@ void controlPump(int pumpNumber, float moistureValue, int threshold) {
       pumpActivations++;
       dailyPumpActivations++;
       #if DEBUG_MODE
-      Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": ACTIVATED");
+      Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": ACTIVATED (will run for 10s)");
       #endif
     } else {
       #if DEBUG_MODE
@@ -461,7 +464,7 @@ void controlPump(int pumpNumber, float moistureValue, int threshold) {
     digitalWrite(pumpPin, HIGH);
     *pumpStatus = false;
     #if DEBUG_MODE
-    Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": DEACTIVATED");
+    Serial.print("Pump "); Serial.print(pumpNumber); Serial.println(": DEACTIVATED (moisture threshold met)");
     #endif
   }
 }
