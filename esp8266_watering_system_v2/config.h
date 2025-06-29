@@ -2,8 +2,8 @@
 #define CONFIG_H
 
 // WiFi Configuration - Update these with your actual WiFi credentials
-#define WIFI_SSID "YourWiFiNetworkName"
-#define WIFI_PASSWORD "YourWiFiPassword"
+#define WIFI_SSID "MountPanke"
+#define WIFI_PASSWORD "Feige&Olive"
 
 // API Configuration - Placeholder for now, will be updated when web app is ready
 #define API_URL "http://placeholder-api.com/api/watering-data"
