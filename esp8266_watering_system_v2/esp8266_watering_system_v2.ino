@@ -77,6 +77,9 @@ void setup() {
   connectToWiFi();
   
   delay(1000);
+  
+  // Run sensor test to diagnose low values
+  testSensorsDirectly();
 }
 
 void loop() {
@@ -167,6 +170,22 @@ int readSensorFromMultiplexer(int channel) {
   
   #if DEBUG_MODE
   Serial.print("Channel "); Serial.print(channel); Serial.print(": "); Serial.println(sensorValue);
+  
+  // Additional diagnostic information
+  Serial.print("  MUX pins - S0:"); Serial.print((channel & 1) ? "HIGH" : "LOW");
+  Serial.print(" S1:"); Serial.print((channel & 2) ? "HIGH" : "LOW");
+  Serial.print(" S2:"); Serial.print((channel & 4) ? "HIGH" : "LOW");
+  Serial.print(" S3:"); Serial.println((channel & 8) ? "HIGH" : "LOW");
+  
+  // Check if value is suspiciously low
+  if (sensorValue < 10) {
+    Serial.println("  WARNING: Very low sensor value detected!");
+    Serial.println("  Possible issues:");
+    Serial.println("  1. Sensor not connected properly");
+    Serial.println("  2. Sensor not powered (VCC/GND)");
+    Serial.println("  3. Multiplexer not working correctly");
+    Serial.println("  4. Wrong channel selected");
+  }
   #endif
   
   return sensorValue;
@@ -178,6 +197,27 @@ void printSensorReadings() {
   Serial.print("Sensor 2: "); Serial.print(value2); Serial.print(" (Pump: "); Serial.print(pump2Active ? "ON" : "OFF"); Serial.println(")");
   Serial.print("Sensor 3: "); Serial.print(value3); Serial.print(" (Pump: "); Serial.print(pump3Active ? "ON" : "OFF"); Serial.println(")");
   Serial.print("Sensor 4: "); Serial.print(value4); Serial.print(" (Pump: "); Serial.print(pump4Active ? "ON" : "OFF"); Serial.println(")");
+  Serial.println();
+}
+
+// Test function to read sensors directly without multiplexer
+void testSensorsDirectly() {
+  Serial.println("=== DIRECT SENSOR TEST (without multiplexer) ===");
+  
+  // Test reading from A0 directly
+  int directReading = analogRead(ANALOG_IN);
+  Serial.print("Direct A0 reading: "); Serial.println(directReading);
+  
+  // Test with different delays
+  delay(100);
+  directReading = analogRead(ANALOG_IN);
+  Serial.print("Direct A0 reading (after 100ms): "); Serial.println(directReading);
+  
+  delay(500);
+  directReading = analogRead(ANALOG_IN);
+  Serial.print("Direct A0 reading (after 500ms): "); Serial.println(directReading);
+  
+  Serial.println("=== END DIRECT TEST ===");
   Serial.println();
 }
 

@@ -11,7 +11,7 @@
 
 // Device Configuration
 #define DEVICE_ID "ESP8266_WATERING_SYSTEM_01"
-#define MOISTURE_THRESHOLD 580  // Threshold for activating pumps
+#define MOISTURE_THRESHOLD 800  // Threshold for activating pumps
 #define API_SEND_INTERVAL 300000 // Send data every 5 minutes (300,000 milliseconds)
 
 // Pin Configuration for ESP8266
