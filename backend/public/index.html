@@ -242,21 +242,45 @@
             content.style.display = 'none';
             error.style.display = 'none';
             
+            console.log('Loading data from:', API_BASE);
+            
             try {
                 // Load current status
+                console.log('Fetching current status...');
                 const statusResponse = await fetch(`${API_BASE}/current-status`);
+                console.log('Status response:', statusResponse);
+                
+                if (!statusResponse.ok) {
+                    throw new Error(`Status API failed: ${statusResponse.status} ${statusResponse.statusText}`);
+                }
+                
                 const statusData = await statusResponse.json();
+                console.log('Status data:', statusData);
                 
                 // Load stats
+                console.log('Fetching stats...');
                 const statsResponse = await fetch(`${API_BASE}/stats`);
+                console.log('Stats response:', statsResponse);
+                
+                if (!statsResponse.ok) {
+                    throw new Error(`Stats API failed: ${statsResponse.status} ${statsResponse.statusText}`);
+                }
+                
                 const statsData = await statsResponse.json();
+                console.log('Stats data:', statsData);
                 
                 if (statusData.success) {
+                    console.log('Displaying current status...');
                     displayCurrentStatus(statusData.current_status);
+                } else {
+                    console.error('Status API returned success: false');
                 }
                 
                 if (statsData.success) {
+                    console.log('Displaying stats...');
                     displayStats(statsData.stats);
+                } else {
+                    console.error('Stats API returned success: false');
                 }
                 
                 document.getElementById('last-updated').textContent = 
@@ -269,17 +293,21 @@
                 console.error('Error loading data:', err);
                 loading.style.display = 'none';
                 error.style.display = 'block';
-                error.textContent = 'Failed to load data. Please check your connection and try again.';
+                error.textContent = `Failed to load data: ${err.message}. Please check your connection and try again.`;
             }
         }
         
         function displayCurrentStatus(status) {
+            console.log('displayCurrentStatus called with:', status);
             const container = document.getElementById('current-status');
             
             if (!status) {
+                console.log('No status data, showing empty message');
                 container.innerHTML = '<p>No data available yet. Send some data from your ESP8266!</p>';
                 return;
             }
+            
+            console.log('Status has sensors:', status.sensors);
             
             const sensorsHtml = status.sensors.map(sensor => {
                 const moisturePercent = Math.max(0, Math.min(100, (sensor.moisture_value / 1023) * 100));
@@ -311,7 +339,7 @@
                 `;
             }).join('');
             
-            container.innerHTML = `
+            const html = `
                 <div class="sensor-grid">
                     ${sensorsHtml}
                 </div>
@@ -319,12 +347,16 @@
                 <p><strong>WiFi Signal:</strong> ${status.wifi_rssi || 'N/A'} dBm</p>
                 <p><strong>Uptime:</strong> ${formatUptime(status.uptime_seconds)}</p>
             `;
+            
+            console.log('Setting container HTML:', html);
+            container.innerHTML = html;
         }
         
         function displayStats(stats) {
+            console.log('displayStats called with:', stats);
             const container = document.getElementById('stats');
             
-            container.innerHTML = `
+            const html = `
                 <div class="stat-card">
                     <div class="stat-value">${stats.total_api_calls}</div>
                     <div class="stat-label">Total API Calls</div>
@@ -342,6 +374,9 @@
                     <div class="stat-label">Success Rate</div>
                 </div>
             `;
+            
+            console.log('Setting stats HTML:', html);
+            container.innerHTML = html;
         }
         
         function formatUptime(seconds) {
