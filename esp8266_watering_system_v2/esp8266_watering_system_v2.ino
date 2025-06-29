@@ -486,8 +486,9 @@ void sendDataToApi() {
     return;
   }
   
+  WiFiClient client;
   HTTPClient http;
-  http.begin(API_URL);
+  http.begin(client, API_URL);
   http.addHeader("Content-Type", "application/json");
   
   // Add API key if configured

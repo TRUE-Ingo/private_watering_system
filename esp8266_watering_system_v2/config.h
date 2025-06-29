@@ -6,7 +6,7 @@
 #define WIFI_PASSWORD "Feige&Olive"
 
 // API Configuration - Placeholder for now, will be updated when web app is ready
-#define API_URL "https://private-watering-system.onrender.com/api"
+#define API_URL "https://private-watering-system.onrender.com/api/watering-data"
 #define API_KEY ""  // Leave empty for now
 
 // Device Configuration
