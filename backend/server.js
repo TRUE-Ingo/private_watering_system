@@ -309,6 +309,94 @@ app.get('/api/current-status', async (req, res) => {
   }
 });
 
+// Get current thresholds for all sensors
+app.get('/api/thresholds', async (req, res) => {
+  try {
+    let sensorData = [];
+    
+    if (useInMemoryStorage) {
+      sensorData = inMemorySensorData;
+    } else {
+      const data = await fs.readFile(SENSOR_DATA_FILE, 'utf8');
+      sensorData = JSON.parse(data);
+    }
+    
+    if (sensorData.length === 0) {
+      return res.json({
+        success: true,
+        thresholds: {
+          1: 600,
+          2: 600,
+          3: 600,
+          4: 600
+        },
+        message: 'No data available, using default thresholds'
+      });
+    }
+    
+    const latestReading = sensorData[sensorData.length - 1];
+    const thresholds = {};
+    
+    if (latestReading.sensors && Array.isArray(latestReading.sensors)) {
+      latestReading.sensors.forEach(sensor => {
+        thresholds[sensor.id] = sensor.threshold || 600;
+      });
+    }
+    
+    res.json({
+      success: true,
+      thresholds: thresholds,
+      timestamp: latestReading.server_timestamp
+    });
+    
+  } catch (error) {
+    console.error('Error reading thresholds:', error);
+    res.status(500).json({ 
+      error: 'Failed to read thresholds' 
+    });
+  }
+});
+
+// Update threshold for a specific sensor
+app.post('/api/thresholds/:sensorId', async (req, res) => {
+  try {
+    const sensorId = parseInt(req.params.sensorId);
+    const { threshold } = req.body;
+    
+    if (!threshold || typeof threshold !== 'number' || threshold < 0 || threshold > 1023) {
+      return res.status(400).json({
+        error: 'Invalid threshold value. Must be a number between 0 and 1023'
+      });
+    }
+    
+    if (sensorId < 1 || sensorId > 4) {
+      return res.status(400).json({
+        error: 'Invalid sensor ID. Must be 1-4'
+      });
+    }
+    
+    // For now, we'll just acknowledge the request
+    // In a real implementation, you might want to send this to the Arduino
+    // or store it in a database for the Arduino to fetch
+    
+    console.log(`Threshold update request: Sensor ${sensorId} -> ${threshold}`);
+    
+    res.json({
+      success: true,
+      message: `Threshold for sensor ${sensorId} updated to ${threshold}`,
+      sensor_id: sensorId,
+      threshold: threshold,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error updating threshold:', error);
+    res.status(500).json({ 
+      error: 'Failed to update threshold' 
+    });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);

@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
+#include <EEPROM.h>
 #include "config.h"
 
 // Pin Configuration using config.h
@@ -20,6 +21,18 @@ int ANALOG_IN = MOISTURE_SENSOR_PIN;
 
 // Water level sensor pin
 int WATER_LEVEL_PIN = WATER_LEVEL_SENSOR_PIN;
+
+// Individual thresholds for each sensor (stored in EEPROM)
+int threshold1 = MOISTURE_THRESHOLD_1;
+int threshold2 = MOISTURE_THRESHOLD_2;
+int threshold3 = MOISTURE_THRESHOLD_3;
+int threshold4 = MOISTURE_THRESHOLD_4;
+
+// EEPROM addresses for storing thresholds
+const int EEPROM_THRESHOLD1 = 0;
+const int EEPROM_THRESHOLD2 = 4;
+const int EEPROM_THRESHOLD3 = 8;
+const int EEPROM_THRESHOLD4 = 12;
 
 // Sensor values
 float value1 = 0;
@@ -69,6 +82,12 @@ bool apiEnabled = true; // Can be set to false if API is not ready
 void setup() {
   Serial.begin(115200);
   
+  // Initialize EEPROM
+  EEPROM.begin(512);
+  
+  // Load thresholds from EEPROM
+  loadThresholds();
+  
   #if DEBUG_MODE
   Serial.println("=== ESP8266 Watering System Starting ===");
   Serial.println("Version: 2.0");
@@ -79,6 +98,8 @@ void setup() {
   Serial.println(" seconds");
   Serial.println("Reading Cycle: 10 seconds");
   Serial.println("Pump Runtime: 10 seconds per cycle");
+  Serial.println("Watering System Ready");
+  Serial.println("Commands: set_threshold <sensor> <value>, get_thresholds, help");
   #endif
   
   // Configure pins
@@ -143,6 +164,10 @@ void loop() {
       testHttpsGet();
     } else if (command == "status") {
       printSensorReadings();
+    } else if (command == "get_thresholds") {
+      printThresholds();
+    } else if (command.startsWith("set_threshold")) {
+      handleSerialCommand(command);
     } else if (command == "help") {
       Serial.println("Available commands:");
       Serial.println("  test   - Test API connection");
@@ -150,6 +175,8 @@ void loop() {
       Serial.println("  http   - Test HTTP connection");
       Serial.println("  https  - Test HTTPS GET connection");
       Serial.println("  status - Show current sensor readings");
+      Serial.println("  get_thresholds - Show current thresholds");
+      Serial.println("  set_threshold <sensor> <value> - Set threshold for sensor (1-4)");
       Serial.println("  help   - Show this help message");
     }
   }
@@ -178,10 +205,10 @@ void loop() {
   readSensors();
   
   // Control pumps based on moisture levels (with protection)
-  controlPump(1, value1, MOISTURE_THRESHOLD);
-  controlPump(2, value2, MOISTURE_THRESHOLD);
-  controlPump(3, value3, MOISTURE_THRESHOLD);
-  controlPump(4, value4, MOISTURE_THRESHOLD);
+  controlPump(1, value1, threshold1);
+  controlPump(2, value2, threshold2);
+  controlPump(3, value3, threshold3);
+  controlPump(4, value4, threshold4);
   
   // Print sensor readings
   #if DEBUG_MODE
@@ -580,25 +607,25 @@ void sendDataToApi() {
   sensor1["id"] = 1;
   sensor1["moisture_value"] = value1;
   sensor1["pump_active"] = pump1Active;
-  sensor1["threshold"] = MOISTURE_THRESHOLD;
+  sensor1["threshold"] = threshold1;
   
   JsonObject sensor2 = sensors.createNestedObject();
   sensor2["id"] = 2;
   sensor2["moisture_value"] = value2;
   sensor2["pump_active"] = pump2Active;
-  sensor2["threshold"] = MOISTURE_THRESHOLD;
+  sensor2["threshold"] = threshold2;
   
   JsonObject sensor3 = sensors.createNestedObject();
   sensor3["id"] = 3;
   sensor3["moisture_value"] = value3;
   sensor3["pump_active"] = pump3Active;
-  sensor3["threshold"] = MOISTURE_THRESHOLD;
+  sensor3["threshold"] = threshold3;
   
   JsonObject sensor4 = sensors.createNestedObject();
   sensor4["id"] = 4;
   sensor4["moisture_value"] = value4;
   sensor4["pump_active"] = pump4Active;
-  sensor4["threshold"] = MOISTURE_THRESHOLD;
+  sensor4["threshold"] = threshold4;
   
   String jsonString;
   serializeJson(doc, jsonString);
@@ -854,4 +881,102 @@ void testHttpsGet() {
   
   http.end();
   Serial.println("=== HTTPS GET TEST COMPLETE ===");
+}
+
+// Function to handle serial commands for threshold management
+void handleSerialCommand(String command) {
+  if (command.startsWith("set_threshold")) {
+    // Parse command: set_threshold <sensor> <value>
+    int firstSpace = command.indexOf(' ');
+    int secondSpace = command.indexOf(' ', firstSpace + 1);
+    
+    if (firstSpace == -1 || secondSpace == -1) {
+      Serial.println("Error: Invalid format. Use: set_threshold <sensor> <value>");
+      return;
+    }
+    
+    String sensorStr = command.substring(firstSpace + 1, secondSpace);
+    String valueStr = command.substring(secondSpace + 1);
+    
+    int sensor = sensorStr.toInt();
+    int value = valueStr.toInt();
+    
+    if (sensor < 1 || sensor > 4) {
+      Serial.println("Error: Sensor must be 1, 2, 3, or 4");
+      return;
+    }
+    
+    if (value < 0 || value > 1023) {
+      Serial.println("Error: Threshold value must be between 0 and 1023");
+      return;
+    }
+    
+    setThreshold(sensor, value);
+    Serial.print("Threshold for sensor "); Serial.print(sensor); Serial.print(" set to: "); Serial.println(value);
+  }
+}
+
+// Function to set threshold for a specific sensor
+void setThreshold(int sensor, int value) {
+  switch(sensor) {
+    case 1:
+      threshold1 = value;
+      EEPROM.put(EEPROM_THRESHOLD1, threshold1);
+      break;
+    case 2:
+      threshold2 = value;
+      EEPROM.put(EEPROM_THRESHOLD2, threshold2);
+      break;
+    case 3:
+      threshold3 = value;
+      EEPROM.put(EEPROM_THRESHOLD3, threshold3);
+      break;
+    case 4:
+      threshold4 = value;
+      EEPROM.put(EEPROM_THRESHOLD4, threshold4);
+      break;
+  }
+  EEPROM.commit();
+}
+
+// Function to load thresholds from EEPROM
+void loadThresholds() {
+  int storedThreshold1, storedThreshold2, storedThreshold3, storedThreshold4;
+  
+  EEPROM.get(EEPROM_THRESHOLD1, storedThreshold1);
+  EEPROM.get(EEPROM_THRESHOLD2, storedThreshold2);
+  EEPROM.get(EEPROM_THRESHOLD3, storedThreshold3);
+  EEPROM.get(EEPROM_THRESHOLD4, storedThreshold4);
+  
+  // Check if EEPROM values are valid (not -1 or 0, which indicates uninitialized)
+  if (storedThreshold1 > 0 && storedThreshold1 <= 1023) {
+    threshold1 = storedThreshold1;
+  }
+  if (storedThreshold2 > 0 && storedThreshold2 <= 1023) {
+    threshold2 = storedThreshold2;
+  }
+  if (storedThreshold3 > 0 && storedThreshold3 <= 1023) {
+    threshold3 = storedThreshold3;
+  }
+  if (storedThreshold4 > 0 && storedThreshold4 <= 1023) {
+    threshold4 = storedThreshold4;
+  }
+  
+  #if DEBUG_MODE
+  Serial.println("Thresholds loaded from EEPROM:");
+  Serial.print("Sensor 1: "); Serial.println(threshold1);
+  Serial.print("Sensor 2: "); Serial.println(threshold2);
+  Serial.print("Sensor 3: "); Serial.println(threshold3);
+  Serial.print("Sensor 4: "); Serial.println(threshold4);
+  #endif
+}
+
+// Function to print current thresholds
+void printThresholds() {
+  Serial.println("=== CURRENT THRESHOLDS ===");
+  Serial.print("Sensor 1: "); Serial.println(threshold1);
+  Serial.print("Sensor 2: "); Serial.println(threshold2);
+  Serial.print("Sensor 3: "); Serial.println(threshold3);
+  Serial.print("Sensor 4: "); Serial.println(threshold4);
+  Serial.println("==========================");
 } 
