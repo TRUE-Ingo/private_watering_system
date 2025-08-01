@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+// const fetch = require('node-fetch');
 
 const BASE_URL = 'https://private-watering-system.onrender.com';
 

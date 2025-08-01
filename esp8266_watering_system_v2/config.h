@@ -11,7 +11,7 @@
 
 // Device Configuration
 #define DEVICE_ID "ESP8266_WATERING_SYSTEM_01"
-#define MOISTURE_THRESHOLD 800  // Threshold for activating pumps
+#define MOISTURE_THRESHOLD 600  // Threshold for activating pumps
 #define API_SEND_INTERVAL 60000 // Send data every 1 minute (60,000 milliseconds) - TEMPORARY FOR TESTING
 
 // Pin Configuration for ESP8266
@@ -28,9 +28,9 @@
 #define WATER_LEVEL_LOW_THRESHOLD 200  // Analog value threshold for low water (if using analog sensor)
 
 // Pump Runtime Protection
-#define MAX_PUMP_RUNTIME 300000  // Maximum pump runtime: 5 minutes (300,000 ms)
-#define PUMP_COOLDOWN_PERIOD 600000  // Cooldown period after max runtime: 10 minutes (600,000 ms)
-#define MAX_DAILY_PUMP_ACTIVATIONS 50  // Maximum pump activations per day
+#define MAX_PUMP_RUNTIME 60000  // Maximum pump runtime: 1 minutes (60,000 ms)
+#define PUMP_COOLDOWN_PERIOD 6000000  // Cooldown period after max runtime: 100 minutes (600,000 ms)
+#define MAX_DAILY_PUMP_RUNTIME 600000  // Maximum total pump runtime per day: 10 minutes (600,000 ms)
 
 // Multiplexer Control Pins for CD74HC4067 (16-channel)
 #define MUX_S0_PIN 12  // D6 on ESP8266 - Channel select bit 0
