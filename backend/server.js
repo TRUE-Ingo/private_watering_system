@@ -15,7 +15,10 @@ let inMemoryStats = {
   total_api_calls: 0,
   failed_api_calls: 0,
   pump_activations: 0,
-  daily_pump_runtime: 0,
+  daily_pump_runtime_1: 0,
+  daily_pump_runtime_2: 0,
+  daily_pump_runtime_3: 0,
+  daily_pump_runtime_4: 0,
   max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
   last_updated: new Date().toISOString()
 };
@@ -84,7 +87,10 @@ async function initializeDataFiles() {
         total_api_calls: 0,
         failed_api_calls: 0,
         pump_activations: 0,
-        daily_pump_runtime: 0,
+        daily_pump_runtime_1: 0,
+        daily_pump_runtime_2: 0,
+        daily_pump_runtime_3: 0,
+        daily_pump_runtime_4: 0,
         max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
         last_updated: new Date().toISOString()
       };
@@ -137,9 +143,18 @@ app.post('/api/watering-data', async (req, res) => {
       const activePumps = data.sensors.filter(sensor => sensor.pump_active).length;
       inMemoryStats.pump_activations += activePumps;
       
-      // Update daily pump runtime if provided
-      if (data.daily_pump_runtime !== undefined) {
-        inMemoryStats.daily_pump_runtime = data.daily_pump_runtime;
+      // Update individual daily pump runtime if provided
+      if (data.daily_pump_runtime_1 !== undefined) {
+        inMemoryStats.daily_pump_runtime_1 = data.daily_pump_runtime_1;
+      }
+      if (data.daily_pump_runtime_2 !== undefined) {
+        inMemoryStats.daily_pump_runtime_2 = data.daily_pump_runtime_2;
+      }
+      if (data.daily_pump_runtime_3 !== undefined) {
+        inMemoryStats.daily_pump_runtime_3 = data.daily_pump_runtime_3;
+      }
+      if (data.daily_pump_runtime_4 !== undefined) {
+        inMemoryStats.daily_pump_runtime_4 = data.daily_pump_runtime_4;
       }
       if (data.max_daily_pump_runtime !== undefined) {
         inMemoryStats.max_daily_pump_runtime = data.max_daily_pump_runtime;
@@ -187,9 +202,18 @@ app.post('/api/watering-data', async (req, res) => {
       const activePumps = data.sensors.filter(sensor => sensor.pump_active).length;
       stats.pump_activations += activePumps;
       
-      // Update daily pump runtime if provided
-      if (data.daily_pump_runtime !== undefined) {
-        stats.daily_pump_runtime = data.daily_pump_runtime;
+      // Update individual daily pump runtime if provided
+      if (data.daily_pump_runtime_1 !== undefined) {
+        stats.daily_pump_runtime_1 = data.daily_pump_runtime_1;
+      }
+      if (data.daily_pump_runtime_2 !== undefined) {
+        stats.daily_pump_runtime_2 = data.daily_pump_runtime_2;
+      }
+      if (data.daily_pump_runtime_3 !== undefined) {
+        stats.daily_pump_runtime_3 = data.daily_pump_runtime_3;
+      }
+      if (data.daily_pump_runtime_4 !== undefined) {
+        stats.daily_pump_runtime_4 = data.daily_pump_runtime_4;
       }
       if (data.max_daily_pump_runtime !== undefined) {
         stats.max_daily_pump_runtime = data.max_daily_pump_runtime;

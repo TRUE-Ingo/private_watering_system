@@ -544,32 +544,45 @@
             console.log('displayProtectionStatus called with:', stats);
             const container = document.getElementById('protection');
             
-            // Calculate daily runtime percentage
-            const dailyRuntime = stats.daily_pump_runtime || 0;
             const maxRuntime = stats.max_daily_pump_runtime || 600000; // 10 minutes default
-            const runtimePercent = Math.min(100, (dailyRuntime / maxRuntime) * 100);
             
-            // Determine status classes
-            let runtimeClass = '';
-            let runtimeValueClass = '';
-            if (runtimePercent >= 90) {
-                runtimeClass = 'danger';
-                runtimeValueClass = 'danger';
-            } else if (runtimePercent >= 70) {
-                runtimeClass = 'warning';
-                runtimeValueClass = 'warning';
-            }
+            // Create individual pump runtime displays
+            const pumpRuntimes = [
+                { pump: 1, runtime: stats.daily_pump_runtime_1 || 0 },
+                { pump: 2, runtime: stats.daily_pump_runtime_2 || 0 },
+                { pump: 3, runtime: stats.daily_pump_runtime_3 || 0 },
+                { pump: 4, runtime: stats.daily_pump_runtime_4 || 0 }
+            ];
+            
+            const pumpHtml = pumpRuntimes.map(pump => {
+                const runtimePercent = Math.min(100, (pump.runtime / maxRuntime) * 100);
+                
+                // Determine status classes
+                let runtimeClass = '';
+                let runtimeValueClass = '';
+                if (runtimePercent >= 90) {
+                    runtimeClass = 'danger';
+                    runtimeValueClass = 'danger';
+                } else if (runtimePercent >= 70) {
+                    runtimeClass = 'warning';
+                    runtimeValueClass = 'warning';
+                }
+                
+                return `
+                    <div class="protection-item ${runtimeClass}">
+                        <div class="protection-label">Pump ${pump.pump} Daily Runtime</div>
+                        <div class="protection-value ${runtimeValueClass}">
+                            ${(pump.runtime / 1000).toFixed(1)}s / ${(maxRuntime / 1000).toFixed(1)}s
+                        </div>
+                        <div class="runtime-bar">
+                            <div class="runtime-fill" style="width: ${runtimePercent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
             
             const html = `
-                <div class="protection-item ${runtimeClass}">
-                    <div class="protection-label">Daily Pump Runtime</div>
-                    <div class="protection-value ${runtimeValueClass}">
-                        ${(dailyRuntime / 1000).toFixed(1)}s / ${(maxRuntime / 1000).toFixed(1)}s
-                    </div>
-                    <div class="runtime-bar">
-                        <div class="runtime-fill" style="width: ${runtimePercent}%"></div>
-                    </div>
-                </div>
+                ${pumpHtml}
                 <div class="protection-item">
                     <div class="protection-label">Water Level</div>
                     <div class="protection-value">
