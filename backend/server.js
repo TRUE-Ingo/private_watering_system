@@ -15,6 +15,8 @@ let inMemoryStats = {
   total_api_calls: 0,
   failed_api_calls: 0,
   pump_activations: 0,
+  daily_pump_runtime: 0,
+  max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
   last_updated: new Date().toISOString()
 };
 
@@ -78,12 +80,14 @@ async function initializeDataFiles() {
   try {
     await fs.access(STATS_FILE);
   } catch {
-    const initialStats = {
-      total_api_calls: 0,
-      failed_api_calls: 0,
-      pump_activations: 0,
-      last_updated: new Date().toISOString()
-    };
+          const initialStats = {
+        total_api_calls: 0,
+        failed_api_calls: 0,
+        pump_activations: 0,
+        daily_pump_runtime: 0,
+        max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
+        last_updated: new Date().toISOString()
+      };
     await fs.writeFile(STATS_FILE, JSON.stringify(initialStats, null, 2));
   }
 }
@@ -132,6 +136,14 @@ app.post('/api/watering-data', async (req, res) => {
       // Count pump activations
       const activePumps = data.sensors.filter(sensor => sensor.pump_active).length;
       inMemoryStats.pump_activations += activePumps;
+      
+      // Update daily pump runtime if provided
+      if (data.daily_pump_runtime !== undefined) {
+        inMemoryStats.daily_pump_runtime = data.daily_pump_runtime;
+      }
+      if (data.max_daily_pump_runtime !== undefined) {
+        inMemoryStats.max_daily_pump_runtime = data.max_daily_pump_runtime;
+      }
     } else {
       // Use file storage for development
       // Read existing data
@@ -174,6 +186,14 @@ app.post('/api/watering-data', async (req, res) => {
       // Count pump activations
       const activePumps = data.sensors.filter(sensor => sensor.pump_active).length;
       stats.pump_activations += activePumps;
+      
+      // Update daily pump runtime if provided
+      if (data.daily_pump_runtime !== undefined) {
+        stats.daily_pump_runtime = data.daily_pump_runtime;
+      }
+      if (data.max_daily_pump_runtime !== undefined) {
+        stats.max_daily_pump_runtime = data.max_daily_pump_runtime;
+      }
       
       await fs.writeFile(STATS_FILE, JSON.stringify(stats, null, 2));
     }
