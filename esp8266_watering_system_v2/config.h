@@ -7,6 +7,7 @@
 
 // API Configuration - Placeholder for now, will be updated when web app is ready
 #define API_URL "https://private-watering-system.onrender.com/api/watering-data"
+#define API_BASE_URL "https://private-watering-system.onrender.com"
 #define API_KEY ""  // Leave empty for now
 
 // Device Configuration
