@@ -11,6 +11,8 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // In-memory storage for Render free tier (ephemeral storage)
 let inMemorySensorData = [];
+let inMemoryHistoricalData = []; // Store historical sensor data
+let inMemoryPumpActivity = []; // Store pump activity periods
 let inMemoryStats = {
   total_api_calls: 0,
   failed_api_calls: 0,
@@ -30,6 +32,8 @@ const useInMemoryStorage = NODE_ENV === 'production';
 const DATA_DIR = path.join(__dirname, 'data');
 const SENSOR_DATA_FILE = path.join(DATA_DIR, 'sensor_data.json');
 const STATS_FILE = path.join(DATA_DIR, 'stats.json');
+const HISTORICAL_DATA_FILE = path.join(DATA_DIR, 'historical_data.json');
+const PUMP_ACTIVITY_FILE = path.join(DATA_DIR, 'pump_activity.json');
 
 // Middleware
 app.use(helmet({
@@ -59,6 +63,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Serve graphs page
+app.get('/graphs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'graphs.html'));
+});
+
 // Ensure data directory exists (only in development)
 async function ensureDataDir() {
   if (useInMemoryStorage) return;
@@ -83,18 +92,30 @@ async function initializeDataFiles() {
   try {
     await fs.access(STATS_FILE);
   } catch {
-          const initialStats = {
-        total_api_calls: 0,
-        failed_api_calls: 0,
-        pump_activations: 0,
-        daily_pump_runtime_1: 0,
-        daily_pump_runtime_2: 0,
-        daily_pump_runtime_3: 0,
-        daily_pump_runtime_4: 0,
-        max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
-        last_updated: new Date().toISOString()
-      };
+    const initialStats = {
+      total_api_calls: 0,
+      failed_api_calls: 0,
+      pump_activations: 0,
+      daily_pump_runtime_1: 0,
+      daily_pump_runtime_2: 0,
+      daily_pump_runtime_3: 0,
+      daily_pump_runtime_4: 0,
+      max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
+      last_updated: new Date().toISOString()
+    };
     await fs.writeFile(STATS_FILE, JSON.stringify(initialStats, null, 2));
+  }
+  
+  try {
+    await fs.access(HISTORICAL_DATA_FILE);
+  } catch {
+    await fs.writeFile(HISTORICAL_DATA_FILE, JSON.stringify([], null, 2));
+  }
+  
+  try {
+    await fs.access(PUMP_ACTIVITY_FILE);
+  } catch {
+    await fs.writeFile(PUMP_ACTIVITY_FILE, JSON.stringify([], null, 2));
   }
 }
 
@@ -135,6 +156,58 @@ app.post('/api/watering-data', async (req, res) => {
       if (inMemorySensorData.length > 1000) {
         inMemorySensorData = inMemorySensorData.slice(-1000);
       }
+      
+      // Store historical data for graphs
+      const historicalEntry = {
+        timestamp: data.server_timestamp,
+        sensors: data.sensors.map(sensor => ({
+          id: sensor.id,
+          moisture_value: sensor.moisture_value,
+          threshold: sensor.threshold,
+          pump_active: sensor.pump_active
+        }))
+      };
+      inMemoryHistoricalData.push(historicalEntry);
+      
+      // Keep only last 7 days of historical data (assuming data every 30 seconds = 2880 entries per day)
+      const maxHistoricalEntries = 7 * 2880; // 7 days worth of data
+      if (inMemoryHistoricalData.length > maxHistoricalEntries) {
+        inMemoryHistoricalData = inMemoryHistoricalData.slice(-maxHistoricalEntries);
+      }
+      
+      // Track pump activity periods
+      data.sensors.forEach(sensor => {
+        if (sensor.pump_active) {
+          // Check if we need to start a new pump activity period
+          const existingActivity = inMemoryPumpActivity.find(activity => 
+            activity.pump_id === sensor.id && !activity.end_time
+          );
+          
+          if (!existingActivity) {
+            // Start new pump activity
+            inMemoryPumpActivity.push({
+              pump_id: sensor.id,
+              start_time: data.server_timestamp,
+              end_time: null
+            });
+          }
+        } else {
+          // End any existing pump activity for this sensor
+          const existingActivity = inMemoryPumpActivity.find(activity => 
+            activity.pump_id === sensor.id && !activity.end_time
+          );
+          
+          if (existingActivity) {
+            existingActivity.end_time = data.server_timestamp;
+          }
+        }
+      });
+      
+      // Clean up old pump activity records (older than 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      inMemoryPumpActivity = inMemoryPumpActivity.filter(activity => 
+        new Date(activity.start_time) > sevenDaysAgo
+      );
       
       inMemoryStats.total_api_calls++;
       inMemoryStats.last_updated = new Date().toISOString();
@@ -179,6 +252,78 @@ app.post('/api/watering-data', async (req, res) => {
       
       // Save updated data
       await fs.writeFile(SENSOR_DATA_FILE, JSON.stringify(sensorData, null, 2));
+      
+      // Store historical data for graphs
+      let historicalData = [];
+      try {
+        const historicalDataContent = await fs.readFile(HISTORICAL_DATA_FILE, 'utf8');
+        historicalData = JSON.parse(historicalDataContent);
+      } catch (error) {
+        historicalData = [];
+      }
+      
+      const historicalEntry = {
+        timestamp: data.server_timestamp,
+        sensors: data.sensors.map(sensor => ({
+          id: sensor.id,
+          moisture_value: sensor.moisture_value,
+          threshold: sensor.threshold,
+          pump_active: sensor.pump_active
+        }))
+      };
+      historicalData.push(historicalEntry);
+      
+      // Keep only last 7 days of historical data
+      const maxHistoricalEntries = 7 * 2880; // 7 days worth of data
+      if (historicalData.length > maxHistoricalEntries) {
+        historicalData = historicalData.slice(-maxHistoricalEntries);
+      }
+      
+      await fs.writeFile(HISTORICAL_DATA_FILE, JSON.stringify(historicalData, null, 2));
+      
+      // Track pump activity periods
+      let pumpActivity = [];
+      try {
+        const pumpActivityContent = await fs.readFile(PUMP_ACTIVITY_FILE, 'utf8');
+        pumpActivity = JSON.parse(pumpActivityContent);
+      } catch (error) {
+        pumpActivity = [];
+      }
+      
+      data.sensors.forEach(sensor => {
+        if (sensor.pump_active) {
+          // Check if we need to start a new pump activity period
+          const existingActivity = pumpActivity.find(activity => 
+            activity.pump_id === sensor.id && !activity.end_time
+          );
+          
+          if (!existingActivity) {
+            // Start new pump activity
+            pumpActivity.push({
+              pump_id: sensor.id,
+              start_time: data.server_timestamp,
+              end_time: null
+            });
+          }
+        } else {
+          // End any existing pump activity for this sensor
+          const existingActivity = pumpActivity.find(activity => 
+            activity.pump_id === sensor.id && !activity.end_time
+          );
+          
+          if (existingActivity) {
+            existingActivity.end_time = data.server_timestamp;
+          }
+        }
+      });
+      
+      // Clean up old pump activity records (older than 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      pumpActivity = pumpActivity.filter(activity => 
+        new Date(activity.start_time) > sevenDaysAgo
+      );
+      
+      await fs.writeFile(PUMP_ACTIVITY_FILE, JSON.stringify(pumpActivity, null, 2));
       
       // Update statistics
       let stats = {
@@ -437,6 +582,112 @@ app.post('/api/thresholds/:sensorId', async (req, res) => {
     console.error('Error updating threshold:', error);
     res.status(500).json({ 
       error: 'Failed to update threshold' 
+    });
+  }
+});
+
+// Get historical data for graphs
+app.get('/api/historical-data', async (req, res) => {
+  try {
+    const { timeRange = '24h', sensors } = req.query;
+    const requestedSensors = sensors ? sensors.split(',').map(s => parseInt(s)) : [1, 2, 3, 4];
+    
+    // Calculate time range
+    const now = new Date();
+    let startTime;
+    
+    switch (timeRange) {
+      case '1h':
+        startTime = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case '6h':
+        startTime = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+        break;
+      case '24h':
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+    
+    let historicalData = [];
+    let pumpActivity = [];
+    
+    if (useInMemoryStorage) {
+      historicalData = inMemoryHistoricalData;
+      pumpActivity = inMemoryPumpActivity;
+    } else {
+      // Read historical data from file
+      try {
+        const historicalDataContent = await fs.readFile(HISTORICAL_DATA_FILE, 'utf8');
+        historicalData = JSON.parse(historicalDataContent);
+      } catch (error) {
+        historicalData = [];
+      }
+      
+      // Read pump activity from file
+      try {
+        const pumpActivityContent = await fs.readFile(PUMP_ACTIVITY_FILE, 'utf8');
+        pumpActivity = JSON.parse(pumpActivityContent);
+      } catch (error) {
+        pumpActivity = [];
+      }
+    }
+    
+    // Filter data by time range
+    const filteredHistoricalData = historicalData.filter(entry => 
+      new Date(entry.timestamp) >= startTime
+    );
+    
+    const filteredPumpActivity = pumpActivity.filter(activity => 
+      new Date(activity.start_time) >= startTime
+    );
+    
+    // Organize sensor data by sensor ID
+    const sensorData = {};
+    requestedSensors.forEach(sensorId => {
+      sensorData[sensorId] = [];
+    });
+    
+    filteredHistoricalData.forEach(entry => {
+      entry.sensors.forEach(sensor => {
+        if (requestedSensors.includes(sensor.id)) {
+          sensorData[sensor.id].push({
+            timestamp: entry.timestamp,
+            moisture_value: sensor.moisture_value,
+            threshold: sensor.threshold,
+            pump_active: sensor.pump_active
+          });
+        }
+      });
+    });
+    
+    // Filter pump activity by requested sensors
+    const filteredPumpActivityBySensor = filteredPumpActivity.filter(activity =>
+      requestedSensors.includes(activity.pump_id)
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        sensors: sensorData,
+        pump_activity: filteredPumpActivityBySensor,
+        time_range: timeRange,
+        start_time: startTime.toISOString(),
+        end_time: now.toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error reading historical data:', error);
+    res.status(500).json({ 
+      error: 'Failed to read historical data' 
     });
   }
 });
