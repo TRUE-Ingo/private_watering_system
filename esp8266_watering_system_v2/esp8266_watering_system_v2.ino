@@ -1050,6 +1050,7 @@ void checkForThresholdUpdates() {
     return;
   }
   
+  WiFiClientSecure client;
   HTTPClient http;
   String url = String(API_BASE_URL) + "/threshold-updates";
   
@@ -1058,7 +1059,7 @@ void checkForThresholdUpdates() {
   Serial.print("URL: "); Serial.println(url);
   #endif
   
-  http.begin(url);
+  http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
   
   int httpCode = http.GET();
@@ -1126,6 +1127,7 @@ void clearThresholdUpdates() {
     return;
   }
   
+  WiFiClientSecure client;
   HTTPClient http;
   String url = String(API_BASE_URL) + "/clear-threshold-updates";
   
@@ -1134,7 +1136,7 @@ void clearThresholdUpdates() {
   Serial.print("URL: "); Serial.println(url);
   #endif
   
-  http.begin(url);
+  http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
   
   int httpCode = http.POST("");
