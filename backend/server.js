@@ -22,6 +22,7 @@ let inMemoryStats = {
   daily_pump_runtime_3: 0,
   daily_pump_runtime_4: 0,
   max_daily_pump_runtime: 600000, // 10 minutes in milliseconds
+  threshold_updates: {},
   last_updated: new Date().toISOString()
 };
 
@@ -564,11 +565,35 @@ app.post('/api/thresholds/:sensorId', async (req, res) => {
       });
     }
     
-    // For now, we'll just acknowledge the request
-    // In a real implementation, you might want to send this to the Arduino
-    // or store it in a database for the Arduino to fetch
+    // Store threshold update for ESP8266 to fetch
+    if (useInMemoryStorage) {
+      // Store in memory
+      if (!inMemoryStats.threshold_updates) {
+        inMemoryStats.threshold_updates = {};
+      }
+      inMemoryStats.threshold_updates[sensorId] = {
+        threshold: threshold,
+        timestamp: new Date().toISOString()
+      };
+    } else {
+      // Store in file
+      try {
+        const statsData = await fs.readFile(STATS_FILE, 'utf8');
+        const stats = JSON.parse(statsData);
+        if (!stats.threshold_updates) {
+          stats.threshold_updates = {};
+        }
+        stats.threshold_updates[sensorId] = {
+          threshold: threshold,
+          timestamp: new Date().toISOString()
+        };
+        await fs.writeFile(STATS_FILE, JSON.stringify(stats, null, 2));
+      } catch (error) {
+        console.error('Error storing threshold update:', error);
+      }
+    }
     
-    console.log(`Threshold update request: Sensor ${sensorId} -> ${threshold}`);
+    console.log(`Threshold update stored: Sensor ${sensorId} -> ${threshold}`);
     
     res.json({
       success: true,
@@ -582,6 +607,66 @@ app.post('/api/thresholds/:sensorId', async (req, res) => {
     console.error('Error updating threshold:', error);
     res.status(500).json({ 
       error: 'Failed to update threshold' 
+    });
+  }
+});
+
+// Get pending threshold updates for ESP8266
+app.get('/api/threshold-updates', async (req, res) => {
+  try {
+    let thresholdUpdates = {};
+    
+    if (useInMemoryStorage) {
+      thresholdUpdates = inMemoryStats.threshold_updates || {};
+    } else {
+      try {
+        const statsData = await fs.readFile(STATS_FILE, 'utf8');
+        const stats = JSON.parse(statsData);
+        thresholdUpdates = stats.threshold_updates || {};
+      } catch (error) {
+        thresholdUpdates = {};
+      }
+    }
+    
+    res.json({
+      success: true,
+      threshold_updates: thresholdUpdates,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Error reading threshold updates:', error);
+    res.status(500).json({ 
+      error: 'Failed to read threshold updates' 
+    });
+  }
+});
+
+// Clear threshold updates after ESP8266 has processed them
+app.post('/api/clear-threshold-updates', async (req, res) => {
+  try {
+    if (useInMemoryStorage) {
+      inMemoryStats.threshold_updates = {};
+    } else {
+      try {
+        const statsData = await fs.readFile(STATS_FILE, 'utf8');
+        const stats = JSON.parse(statsData);
+        stats.threshold_updates = {};
+        await fs.writeFile(STATS_FILE, JSON.stringify(stats, null, 2));
+      } catch (error) {
+        console.error('Error clearing threshold updates:', error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Threshold updates cleared'
+    });
+    
+  } catch (error) {
+    console.error('Error clearing threshold updates:', error);
+    res.status(500).json({ 
+      error: 'Failed to clear threshold updates' 
     });
   }
 });

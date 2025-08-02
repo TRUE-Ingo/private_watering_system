@@ -2,5 +2,6 @@
   "total_api_calls": 3,
   "failed_api_calls": 0,
   "pump_activations": 6,
-  "last_updated": "2025-06-29T10:27:05.893Z"
+  "last_updated": "2025-06-29T10:27:05.893Z",
+  "threshold_updates": {}
 }

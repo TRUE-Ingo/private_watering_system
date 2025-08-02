@@ -224,6 +224,13 @@ void loop() {
     lastApiCall = millis();
   }
   
+  // Check for threshold updates from web app (every 30 seconds)
+  static unsigned long lastThresholdCheck = 0;
+  if (apiEnabled && WiFi.status() == WL_CONNECTED && millis() - lastThresholdCheck > 30000) {
+    checkForThresholdUpdates();
+    lastThresholdCheck = millis();
+  }
+  
   delay(10000); // Changed from 1000ms to 10000ms (10 seconds)
 }
 
@@ -1035,4 +1042,112 @@ void printThresholds() {
   Serial.print("Sensor 3: "); Serial.println(threshold3);
   Serial.print("Sensor 4: "); Serial.println(threshold4);
   Serial.println("==========================");
+}
+
+// Function to check for threshold updates from web app
+void checkForThresholdUpdates() {
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+  
+  HTTPClient http;
+  String url = String(API_BASE_URL) + "/threshold-updates";
+  
+  #if DEBUG_MODE
+  Serial.println("Checking for threshold updates...");
+  Serial.print("URL: "); Serial.println(url);
+  #endif
+  
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  
+  int httpCode = http.GET();
+  
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    
+    #if DEBUG_MODE
+    Serial.println("Threshold updates response:");
+    Serial.println(payload);
+    #endif
+    
+    // Parse JSON response
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if (!error) {
+      if (doc["success"] == true && doc.containsKey("threshold_updates")) {
+        JsonObject updates = doc["threshold_updates"];
+        bool hasUpdates = false;
+        
+        // Process each threshold update
+        for (JsonPair kv : updates) {
+          String sensorIdStr = kv.key().c_str();
+          int sensorId = sensorIdStr.toInt();
+          
+          if (sensorId >= 1 && sensorId <= 4) {
+            JsonObject update = kv.value();
+            int newThreshold = update["threshold"];
+            
+            if (newThreshold >= 0 && newThreshold <= 1023) {
+              #if DEBUG_MODE
+              Serial.print("Updating threshold for sensor "); Serial.print(sensorId);
+              Serial.print(" to "); Serial.println(newThreshold);
+              #endif
+              
+              setThreshold(sensorId, newThreshold);
+              hasUpdates = true;
+            }
+          }
+        }
+        
+        // If we processed updates, clear them from the server
+        if (hasUpdates) {
+          clearThresholdUpdates();
+        }
+      }
+    } else {
+      #if DEBUG_MODE
+      Serial.print("JSON parsing error: "); Serial.println(error.c_str());
+      #endif
+    }
+  } else {
+    #if DEBUG_MODE
+    Serial.print("HTTP request failed, error: "); Serial.println(httpCode);
+    #endif
+  }
+  
+  http.end();
+}
+
+// Function to clear threshold updates from server
+void clearThresholdUpdates() {
+  if (WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+  
+  HTTPClient http;
+  String url = String(API_BASE_URL) + "/clear-threshold-updates";
+  
+  #if DEBUG_MODE
+  Serial.println("Clearing threshold updates...");
+  Serial.print("URL: "); Serial.println(url);
+  #endif
+  
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  
+  int httpCode = http.POST("");
+  
+  if (httpCode == HTTP_CODE_OK) {
+    #if DEBUG_MODE
+    Serial.println("Threshold updates cleared successfully");
+    #endif
+  } else {
+    #if DEBUG_MODE
+    Serial.print("Failed to clear threshold updates, error: "); Serial.println(httpCode);
+    #endif
+  }
+  
+  http.end();
 } 
