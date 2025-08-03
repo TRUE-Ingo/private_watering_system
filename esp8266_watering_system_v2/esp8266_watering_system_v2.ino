@@ -169,6 +169,8 @@ void loop() {
       printSensorReadings();
     } else if (command == "get_thresholds") {
       printThresholds();
+    } else if (command == "pump_status") {
+      displayPumpStatus();
     } else if (command.startsWith("set_threshold")) {
       handleSerialCommand(command);
     } else if (command == "help") {
@@ -179,6 +181,7 @@ void loop() {
       Serial.println("  https  - Test HTTPS GET connection");
       Serial.println("  status - Show current sensor readings");
       Serial.println("  get_thresholds - Show current thresholds");
+      Serial.println("  pump_status - Show pump status and cooldown info");
       Serial.println("  set_threshold <sensor> <value> - Set threshold for sensor (1-4)");
       Serial.println("  help   - Show this help message");
     }
@@ -217,6 +220,13 @@ void loop() {
   #if DEBUG_MODE
   printSensorReadings();
   #endif
+  
+  // Display pump status periodically (every 30 seconds)
+  static unsigned long lastPumpStatusDisplay = 0;
+  if (millis() - lastPumpStatusDisplay > 30000) {
+    displayPumpStatus();
+    lastPumpStatusDisplay = millis();
+  }
   
   // Send data to API periodically (only if API is enabled and WiFi is connected)
   if (apiEnabled && WiFi.status() == WL_CONNECTED && millis() - lastApiCall > API_SEND_INTERVAL) {
@@ -1164,4 +1174,87 @@ void clearThresholdUpdates() {
   }
   
   http.end();
-} 
+}
+
+// Function to display pump status and cooldown information
+void displayPumpStatus() {
+  unsigned long currentTime = millis();
+  
+  #if DEBUG_MODE
+  Serial.println("=== PUMP STATUS ===");
+  
+  // Pump 1
+  Serial.print("Pump 1: ");
+  if (pump1Active) {
+    Serial.print("ACTIVE (running for ");
+    Serial.print((currentTime - pump1StartTime) / 1000);
+    Serial.println(" seconds)");
+  } else {
+    Serial.print("INACTIVE");
+    if (currentTime < pump1CooldownEnd) {
+      Serial.print(" - Cooldown for ");
+      Serial.print((pump1CooldownEnd - currentTime) / 1000);
+      Serial.println(" more seconds");
+    } else {
+      Serial.println(" - Available");
+    }
+  }
+  Serial.print("  Daily runtime: "); Serial.print(dailyPumpRuntime1 / 1000); Serial.println(" seconds");
+  
+  // Pump 2
+  Serial.print("Pump 2: ");
+  if (pump2Active) {
+    Serial.print("ACTIVE (running for ");
+    Serial.print((currentTime - pump2StartTime) / 1000);
+    Serial.println(" seconds)");
+  } else {
+    Serial.print("INACTIVE");
+    if (currentTime < pump2CooldownEnd) {
+      Serial.print(" - Cooldown for ");
+      Serial.print((pump2CooldownEnd - currentTime) / 1000);
+      Serial.println(" more seconds");
+    } else {
+      Serial.println(" - Available");
+    }
+  }
+  Serial.print("  Daily runtime: "); Serial.print(dailyPumpRuntime2 / 1000); Serial.println(" seconds");
+  
+  // Pump 3
+  Serial.print("Pump 3: ");
+  if (pump3Active) {
+    Serial.print("ACTIVE (running for ");
+    Serial.print((currentTime - pump3StartTime) / 1000);
+    Serial.println(" seconds)");
+  } else {
+    Serial.print("INACTIVE");
+    if (currentTime < pump3CooldownEnd) {
+      Serial.print(" - Cooldown for ");
+      Serial.print((pump3CooldownEnd - currentTime) / 1000);
+      Serial.println(" more seconds");
+    } else {
+      Serial.println(" - Available");
+    }
+  }
+  Serial.print("  Daily runtime: "); Serial.print(dailyPumpRuntime3 / 1000); Serial.println(" seconds");
+  
+  // Pump 4
+  Serial.print("Pump 4: ");
+  if (pump4Active) {
+    Serial.print("ACTIVE (running for ");
+    Serial.print((currentTime - pump4StartTime) / 1000);
+    Serial.println(" seconds)");
+  } else {
+    Serial.print("INACTIVE");
+    if (currentTime < pump4CooldownEnd) {
+      Serial.print(" - Cooldown for ");
+      Serial.print((pump4CooldownEnd - currentTime) / 1000);
+      Serial.println(" more seconds");
+    } else {
+      Serial.println(" - Available");
+    }
+  }
+  Serial.print("  Daily runtime: "); Serial.print(dailyPumpRuntime4 / 1000); Serial.println(" seconds");
+  
+  Serial.println("==================");
+  #endif
+}
