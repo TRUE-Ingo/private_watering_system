@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// In-memory storage for Render free tier (ephemeral storage)
+// In-memory storage variables (kept for compatibility but not used)
 let inMemorySensorData = [];
 let inMemoryHistoricalData = []; // Store historical sensor data
 let inMemoryPumpActivity = []; // Store pump activity periods
@@ -69,10 +69,8 @@ app.get('/graphs', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'graphs.html'));
 });
 
-// Ensure data directory exists (only in development)
+// Ensure data directory exists (for persistence)
 async function ensureDataDir() {
-  if (useInMemoryStorage) return;
-  
   try {
     await fs.access(DATA_DIR);
   } catch {
@@ -80,9 +78,8 @@ async function ensureDataDir() {
   }
 }
 
-// Initialize data files if they don't exist (only in development)
+// Initialize data files if they don't exist (for persistence)
 async function initializeDataFiles() {
-  if (useInMemoryStorage) return;
   
   try {
     await fs.access(SENSOR_DATA_FILE);
