@@ -1052,15 +1052,20 @@ void checkForThresholdUpdates() {
   
   WiFiClientSecure client;
   HTTPClient http;
-  String url = String(API_BASE_URL) + "/threshold-updates";
+  String url = String(API_BASE_URL) + "/api/threshold-updates";
   
   #if DEBUG_MODE
   Serial.println("Checking for threshold updates...");
   Serial.print("URL: "); Serial.println(url);
   #endif
   
+  // Configure SSL client
+  client.setInsecure(); // Skip certificate verification
+  client.setTimeout(10000);
+  
   http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
+  http.setTimeout(10000); // 10 second timeout
   
   int httpCode = http.GET();
   
@@ -1115,6 +1120,7 @@ void checkForThresholdUpdates() {
   } else {
     #if DEBUG_MODE
     Serial.print("HTTP request failed, error: "); Serial.println(httpCode);
+    Serial.print("Error description: "); Serial.println(http.errorToString(httpCode));
     #endif
   }
   
@@ -1129,15 +1135,20 @@ void clearThresholdUpdates() {
   
   WiFiClientSecure client;
   HTTPClient http;
-  String url = String(API_BASE_URL) + "/clear-threshold-updates";
+  String url = String(API_BASE_URL) + "/api/clear-threshold-updates";
   
   #if DEBUG_MODE
   Serial.println("Clearing threshold updates...");
   Serial.print("URL: "); Serial.println(url);
   #endif
   
+  // Configure SSL client
+  client.setInsecure(); // Skip certificate verification
+  client.setTimeout(10000);
+  
   http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
+  http.setTimeout(10000); // 10 second timeout
   
   int httpCode = http.POST("");
   
@@ -1148,6 +1159,7 @@ void clearThresholdUpdates() {
   } else {
     #if DEBUG_MODE
     Serial.print("Failed to clear threshold updates, error: "); Serial.println(httpCode);
+    Serial.print("Error description: "); Serial.println(http.errorToString(httpCode));
     #endif
   }
   
