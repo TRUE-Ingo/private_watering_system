@@ -26,10 +26,10 @@ let inMemoryStats = {
   last_updated: new Date().toISOString()
 };
 
-// Use in-memory storage on Render free tier
-const useInMemoryStorage = NODE_ENV === 'production';
+// Use file-based storage for persistence (even in production)
+const useInMemoryStorage = false;
 
-// Data storage path (only used in development)
+// Data storage path (used for persistence)
 const DATA_DIR = path.join(__dirname, 'data');
 const SENSOR_DATA_FILE = path.join(DATA_DIR, 'sensor_data.json');
 const STATS_FILE = path.join(DATA_DIR, 'stats.json');
