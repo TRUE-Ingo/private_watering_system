@@ -368,14 +368,7 @@ app.post('/api/watering-data', async (req, res) => {
       await fs.writeFile(STATS_FILE, JSON.stringify(stats, null, 2));
     }
     
-    // Log the received data
-    console.log(`Received data from ${data.device_id}:`, {
-      timestamp: data.server_timestamp,
-      sensors: data.sensors.length,
-      active_pumps: data.sensors.filter(sensor => sensor.pump_active).length,
-      wifi_rssi: data.wifi_rssi,
-      storage: useInMemoryStorage ? 'memory' : 'file'
-    });
+    // Data received from ESP8266
     
     res.json({ 
       success: true, 
@@ -625,7 +618,7 @@ app.post('/api/thresholds/:sensorId', async (req, res) => {
       }
     }
     
-    console.log(`Threshold update stored: Sensor ${sensorId} -> ${threshold}`);
+
     
     res.json({
       success: true,
