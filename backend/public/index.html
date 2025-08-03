@@ -637,7 +637,7 @@
                                    min="0" 
                                    max="1023" 
                                    placeholder="0-1023">
-                            <button type="button" onclick="updateThreshold(${sensorId})" id="update-btn-${sensorId}">
+                            <button type="button" data-sensor-id="${sensorId}" id="update-btn-${sensorId}">
                                 Update
                             </button>
                         </div>
@@ -748,10 +748,17 @@
             }
         });
         
-        // Add global click handler for debugging
+        // Add global click handler for threshold update buttons
         document.addEventListener('click', function(e) {
             if (e.target && e.target.id && e.target.id.startsWith('update-btn-')) {
                 console.log('Button clicked:', e.target.id);
+                
+                // Get the sensor ID from the data attribute
+                const sensorId = e.target.getAttribute('data-sensor-id');
+                if (sensorId) {
+                    console.log(`Calling updateThreshold for sensor ${sensorId}`);
+                    updateThreshold(parseInt(sensorId));
+                }
             }
         });
     </script>
