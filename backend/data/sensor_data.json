@@ -84,7 +84,7 @@
         "id": 1,
         "moisture_value": 450,
         "pump_active": false,
-        "threshold": 580
+        "threshold": 700
       },
       {
         "id": 2,

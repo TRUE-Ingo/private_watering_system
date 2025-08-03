@@ -575,6 +575,17 @@ app.post('/api/thresholds/:sensorId', async (req, res) => {
         threshold: threshold,
         timestamp: new Date().toISOString()
       };
+      
+      // Also update the latest sensor data so the web app shows the new threshold
+      if (inMemorySensorData.length > 0) {
+        const latestData = inMemorySensorData[inMemorySensorData.length - 1];
+        if (latestData.sensors && Array.isArray(latestData.sensors)) {
+          const sensor = latestData.sensors.find(s => s.id === sensorId);
+          if (sensor) {
+            sensor.threshold = threshold;
+          }
+        }
+      }
     } else {
       // Store in file
       try {
@@ -588,6 +599,27 @@ app.post('/api/thresholds/:sensorId', async (req, res) => {
           timestamp: new Date().toISOString()
         };
         await fs.writeFile(STATS_FILE, JSON.stringify(stats, null, 2));
+        
+        // Also update the sensor data file
+        try {
+          const sensorData = await fs.readFile(SENSOR_DATA_FILE, 'utf8');
+          const sensorDataArray = JSON.parse(sensorData);
+          
+          if (sensorDataArray.length > 0) {
+            const latestData = sensorDataArray[sensorDataArray.length - 1];
+            
+            if (latestData.sensors && Array.isArray(latestData.sensors)) {
+              const sensor = latestData.sensors.find(s => s.id === sensorId);
+              
+              if (sensor) {
+                sensor.threshold = threshold;
+                await fs.writeFile(SENSOR_DATA_FILE, JSON.stringify(sensorDataArray, null, 2));
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error updating sensor data file:', error);
+        }
       } catch (error) {
         console.error('Error storing threshold update:', error);
       }

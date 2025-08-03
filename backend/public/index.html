@@ -629,6 +629,7 @@
             
             const html = Object.keys(thresholds).map(sensorId => {
                 const threshold = thresholds[sensorId];
+                console.log(`Creating threshold control for sensor ${sensorId} with value ${threshold}`);
                 return `
                     <div class="threshold-item">
                         <div class="threshold-label">Sensor ${sensorId}</div>
@@ -653,11 +654,13 @@
         }
         
         async function updateThreshold(sensorId) {
+            console.log(`updateThreshold called for sensor ${sensorId}`);
             const input = document.getElementById(`threshold-${sensorId}`);
             const button = document.getElementById(`update-btn-${sensorId}`);
             const successDiv = document.getElementById(`success-${sensorId}`);
             
             const threshold = parseInt(input.value);
+            console.log(`Threshold value: ${threshold}`);
             
             if (isNaN(threshold) || threshold < 0 || threshold > 1023) {
                 alert('Please enter a valid threshold value between 0 and 1023');
@@ -669,16 +672,24 @@
             button.textContent = 'Updating...';
             
             try {
-                const response = await fetch(`${API_BASE}/thresholds/${sensorId}`, {
+                const url = `${API_BASE}/thresholds/${sensorId}`;
+                const payload = JSON.stringify({ threshold: threshold });
+                console.log(`Making POST request to: ${url}`);
+                console.log(`Payload: ${payload}`);
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ threshold: threshold })
+                    body: payload
                 });
+                
+                console.log(`Response status: ${response.status}`);
                 
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('Update successful:', result);
                     successDiv.textContent = `Threshold updated successfully!`;
                     successDiv.style.display = 'block';
                     
@@ -688,6 +699,7 @@
                     }, 3000);
                 } else {
                     const error = await response.json();
+                    console.error('Update failed:', error);
                     alert(`Failed to update threshold: ${error.error}`);
                 }
             } catch (error) {
