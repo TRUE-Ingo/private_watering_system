@@ -637,7 +637,7 @@
                                    min="0" 
                                    max="1023" 
                                    placeholder="0-1023">
-                            <button onclick="updateThreshold(${sensorId})" id="update-btn-${sensorId}">
+                            <button type="button" onclick="updateThreshold(${sensorId})" id="update-btn-${sensorId}">
                                 Update
                             </button>
                         </div>
@@ -650,11 +650,26 @@
         }
         
         async function updateThreshold(sensorId) {
+            console.log(`updateThreshold called for sensor ${sensorId}`);
+            
             const input = document.getElementById(`threshold-${sensorId}`);
             const button = document.getElementById(`update-btn-${sensorId}`);
             const successDiv = document.getElementById(`success-${sensorId}`);
             
+            if (!input) {
+                console.error(`Input element not found for sensor ${sensorId}`);
+                alert('Error: Input element not found');
+                return;
+            }
+            
+            if (!button) {
+                console.error(`Button element not found for sensor ${sensorId}`);
+                alert('Error: Button element not found');
+                return;
+            }
+            
             const threshold = parseInt(input.value);
+            console.log(`Threshold value: ${threshold}`);
             
             if (isNaN(threshold) || threshold < 0 || threshold > 1023) {
                 alert('Please enter a valid threshold value between 0 and 1023');
@@ -669,6 +684,9 @@
                 const url = `${API_BASE}/thresholds/${sensorId}`;
                 const payload = JSON.stringify({ threshold: threshold });
                 
+                console.log(`Sending POST request to: ${url}`);
+                console.log(`Payload: ${payload}`);
+                
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -677,8 +695,11 @@
                     body: payload
                 });
                 
+                console.log(`Response status: ${response.status}`);
+                
                 if (response.ok) {
                     const result = await response.json();
+                    console.log('Update successful:', result);
                     successDiv.textContent = `Threshold updated successfully!`;
                     successDiv.style.display = 'block';
                     
@@ -724,6 +745,13 @@
         document.addEventListener('focusout', function(e) {
             if (e.target.id && e.target.id.startsWith('threshold-')) {
                 refreshInterval = setInterval(loadData, 30000);
+            }
+        });
+        
+        // Add global click handler for debugging
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.id && e.target.id.startsWith('update-btn-')) {
+                console.log('Button clicked:', e.target.id);
             }
         });
     </script>
