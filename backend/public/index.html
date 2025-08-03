@@ -600,18 +600,40 @@
             }
         }
         
+        // Store original threshold values to detect changes
+        let originalThresholds = {};
+        
         function displayThresholdControls(thresholds) {
             const container = document.getElementById('threshold-controls');
             
             const html = Object.keys(thresholds).map(sensorId => {
                 const threshold = thresholds[sensorId];
+                
+                // Store original value if not already stored
+                if (!originalThresholds[sensorId]) {
+                    originalThresholds[sensorId] = threshold;
+                }
+                
+                // Preserve current input value if user has changed it
+                let currentValue = threshold;
+                const existingInput = document.getElementById(`threshold-${sensorId}`);
+                if (existingInput) {
+                    const inputValue = parseInt(existingInput.value);
+                    const originalValue = originalThresholds[sensorId];
+                    
+                    // If the input value is different from the original, preserve it
+                    if (!isNaN(inputValue) && inputValue !== originalValue) {
+                        currentValue = inputValue;
+                    }
+                }
+                
                 return `
                     <div class="threshold-item">
                         <div class="threshold-label">Sensor ${sensorId}</div>
                         <div class="threshold-input">
                             <input type="number" 
                                    id="threshold-${sensorId}" 
-                                   value="${threshold}" 
+                                   value="${currentValue}" 
                                    min="0" 
                                    max="1023" 
                                    placeholder="0-1023">
@@ -660,6 +682,9 @@
                     successDiv.textContent = `Threshold updated successfully!`;
                     successDiv.style.display = 'block';
                     
+                    // Update the original threshold value to reflect the new value
+                    originalThresholds[sensorId] = threshold;
+                    
                     // Hide success message after 3 seconds
                     setTimeout(() => {
                         successDiv.style.display = 'none';
@@ -685,8 +710,22 @@
         // Add event listener for refresh button
         document.getElementById('refresh-btn').addEventListener('click', loadData);
         
-        // Auto-refresh every 30 seconds
-        setInterval(loadData, 30000);
+        // Auto-refresh every 30 seconds, but pause if user is editing thresholds
+        let refreshInterval = setInterval(loadData, 30000);
+        
+        // Pause auto-refresh when user is editing thresholds
+        document.addEventListener('focusin', function(e) {
+            if (e.target.id && e.target.id.startsWith('threshold-')) {
+                clearInterval(refreshInterval);
+            }
+        });
+        
+        // Resume auto-refresh when user stops editing
+        document.addEventListener('focusout', function(e) {
+            if (e.target.id && e.target.id.startsWith('threshold-')) {
+                refreshInterval = setInterval(loadData, 30000);
+            }
+        });
     </script>
 </body>
 </html> 
