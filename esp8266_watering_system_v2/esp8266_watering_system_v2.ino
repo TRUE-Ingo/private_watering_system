@@ -171,6 +171,8 @@ void loop() {
       printThresholds();
     } else if (command == "pump_status") {
       displayPumpStatus();
+    } else if (command == "check_updates") {
+      checkForThresholdUpdates();
     } else if (command.startsWith("set_threshold")) {
       handleSerialCommand(command);
     } else if (command == "help") {
@@ -182,6 +184,7 @@ void loop() {
       Serial.println("  status - Show current sensor readings");
       Serial.println("  get_thresholds - Show current thresholds");
       Serial.println("  pump_status - Show pump status and cooldown info");
+      Serial.println("  check_updates - Manually check for threshold updates");
       Serial.println("  set_threshold <sensor> <value> - Set threshold for sensor (1-4)");
       Serial.println("  help   - Show this help message");
     }
@@ -237,6 +240,13 @@ void loop() {
   // Check for threshold updates from web app (every 30 seconds)
   static unsigned long lastThresholdCheck = 0;
   if (apiEnabled && WiFi.status() == WL_CONNECTED && millis() - lastThresholdCheck > 30000) {
+    #if DEBUG_MODE
+    Serial.println("=== CHECKING FOR THRESHOLD UPDATES ===");
+    Serial.print("Current thresholds - 1:"); Serial.print(threshold1);
+    Serial.print(" 2:"); Serial.print(threshold2);
+    Serial.print(" 3:"); Serial.print(threshold3);
+    Serial.print(" 4:"); Serial.println(threshold4);
+    #endif
     checkForThresholdUpdates();
     lastThresholdCheck = millis();
   }
@@ -1113,13 +1123,24 @@ void checkForThresholdUpdates() {
               
               setThreshold(sensorId, newThreshold);
               hasUpdates = true;
+              #if DEBUG_MODE
+              Serial.print("✅ Threshold for sensor "); Serial.print(sensorId);
+              Serial.print(" updated to "); Serial.println(newThreshold);
+              #endif
             }
           }
         }
         
         // If we processed updates, clear them from the server
         if (hasUpdates) {
+          #if DEBUG_MODE
+          Serial.println("Updates processed, clearing from server...");
+          #endif
           clearThresholdUpdates();
+        } else {
+          #if DEBUG_MODE
+          Serial.println("No threshold updates found");
+          #endif
         }
       }
     } else {
