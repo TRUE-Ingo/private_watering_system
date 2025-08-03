@@ -171,9 +171,11 @@ void loop() {
       printThresholds();
     } else if (command == "pump_status") {
       displayPumpStatus();
-    } else if (command == "check_updates") {
-      checkForThresholdUpdates();
-    } else if (command.startsWith("set_threshold")) {
+         } else if (command == "check_updates") {
+       checkForThresholdUpdates();
+     } else if (command == "clear_updates") {
+       clearThresholdUpdates();
+     } else if (command.startsWith("set_threshold")) {
       handleSerialCommand(command);
     } else if (command == "help") {
       Serial.println("Available commands:");
@@ -183,9 +185,10 @@ void loop() {
       Serial.println("  https  - Test HTTPS GET connection");
       Serial.println("  status - Show current sensor readings");
       Serial.println("  get_thresholds - Show current thresholds");
-      Serial.println("  pump_status - Show pump status and cooldown info");
-      Serial.println("  check_updates - Manually check for threshold updates");
-      Serial.println("  set_threshold <sensor> <value> - Set threshold for sensor (1-4)");
+             Serial.println("  pump_status - Show pump status and cooldown info");
+       Serial.println("  check_updates - Manually check for threshold updates");
+       Serial.println("  clear_updates - Manually clear threshold updates from server");
+       Serial.println("  set_threshold <sensor> <value> - Set threshold for sensor (1-4)");
       Serial.println("  help   - Show this help message");
     }
   }
@@ -1131,17 +1134,20 @@ void checkForThresholdUpdates() {
           }
         }
         
-        // If we processed updates, clear them from the server
-        if (hasUpdates) {
-          #if DEBUG_MODE
-          Serial.println("Updates processed, clearing from server...");
-          #endif
-          clearThresholdUpdates();
-        } else {
-          #if DEBUG_MODE
-          Serial.println("No threshold updates found");
-          #endif
-        }
+                 // If we processed updates, clear them from the server
+         if (hasUpdates) {
+           #if DEBUG_MODE
+           Serial.println("Updates processed, clearing from server...");
+           #endif
+           clearThresholdUpdates();
+           
+           // Note: Even if clearing fails, the updates were successfully applied locally
+           // The server will eventually clear old updates or they'll be overwritten by new ones
+         } else {
+           #if DEBUG_MODE
+           Serial.println("No threshold updates found");
+           #endif
+         }
       }
     } else {
       #if DEBUG_MODE
@@ -1158,43 +1164,81 @@ void checkForThresholdUpdates() {
   http.end();
 }
 
-// Function to clear threshold updates from server
+// Function to clear threshold updates from server with retry logic
 void clearThresholdUpdates() {
   if (WiFi.status() != WL_CONNECTED) {
+    #if DEBUG_MODE
+    Serial.println("❌ Cannot clear updates: WiFi not connected");
+    #endif
     return;
   }
   
-  WiFiClientSecure client;
-  HTTPClient http;
-  String url = String(API_BASE_URL) + "/api/clear-threshold-updates";
+  const int maxRetries = 3;
+  const int retryDelay = 2000; // 2 seconds between retries
   
-  #if DEBUG_MODE
-  Serial.println("Clearing threshold updates...");
-  Serial.print("URL: "); Serial.println(url);
-  #endif
-  
-  // Configure SSL client
-  client.setInsecure(); // Skip certificate verification
-  client.setTimeout(10000);
-  
-  http.begin(client, url);
-  http.addHeader("Content-Type", "application/json");
-  http.setTimeout(10000); // 10 second timeout
-  
-  int httpCode = http.POST("");
-  
-  if (httpCode == HTTP_CODE_OK) {
+  for (int attempt = 1; attempt <= maxRetries; attempt++) {
     #if DEBUG_MODE
-    Serial.println("Threshold updates cleared successfully");
+    Serial.print("Clearing threshold updates (attempt "); Serial.print(attempt); Serial.print("/"); Serial.print(maxRetries); Serial.println(")...");
     #endif
-  } else {
+    
+    WiFiClientSecure client;
+    HTTPClient http;
+    String url = String(API_BASE_URL) + "/api/clear-threshold-updates";
+    
     #if DEBUG_MODE
-    Serial.print("Failed to clear threshold updates, error: "); Serial.println(httpCode);
-    Serial.print("Error description: "); Serial.println(http.errorToString(httpCode));
+    Serial.print("URL: "); Serial.println(url);
     #endif
+    
+    // Configure SSL client with more robust settings
+    client.setInsecure(); // Skip certificate verification
+    client.setTimeout(15000); // Increased timeout to 15 seconds
+    
+    if (!http.begin(client, url)) {
+      #if DEBUG_MODE
+      Serial.println("❌ Failed to begin HTTP client");
+      #endif
+      http.end();
+      if (attempt < maxRetries) {
+        delay(retryDelay);
+        continue;
+      }
+      return;
+    }
+    
+    http.addHeader("Content-Type", "application/json");
+    http.setTimeout(15000); // Increased timeout to 15 seconds
+    
+    // Send a simple JSON payload
+    String payload = "{\"cleared\": true}";
+    int httpCode = http.POST(payload);
+    
+    if (httpCode == HTTP_CODE_OK) {
+      #if DEBUG_MODE
+      Serial.println("✅ Threshold updates cleared successfully");
+      #endif
+      http.end();
+      return; // Success, exit function
+    } else {
+      #if DEBUG_MODE
+      Serial.print("❌ Failed to clear threshold updates, error: "); Serial.println(httpCode);
+      Serial.print("Error description: "); Serial.println(http.errorToString(httpCode));
+      Serial.print("Payload sent: "); Serial.println(payload);
+      #endif
+      
+      http.end();
+      
+      if (attempt < maxRetries) {
+        #if DEBUG_MODE
+        Serial.print("Retrying in "); Serial.print(retryDelay / 1000); Serial.println(" seconds...");
+        #endif
+        delay(retryDelay);
+      } else {
+        #if DEBUG_MODE
+        Serial.println("❌ All retry attempts failed. Updates may remain on server.");
+        #endif
+      }
+    }
   }
-  
-  http.end();
 }
 
 // Function to display pump status and cooldown information
