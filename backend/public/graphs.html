@@ -235,7 +235,7 @@
             <h1>🌱 Watering System - Historical Data</h1>
             <div class="nav-buttons">
                 <a href="/" class="nav-btn">📊 Dashboard</a>
-                <button class="nav-btn" onclick="refreshData()">🔄 Refresh</button>
+                <button class="nav-btn" id="refresh-btn">🔄 Refresh</button>
             </div>
         </div>
 
@@ -269,7 +269,7 @@
                     </div>
                 </div>
                 <div class="control-group">
-                    <button class="control-btn" onclick="loadGraphData()">📈 Load Data</button>
+                    <button class="control-btn" id="load-btn">📈 Load Data</button>
                 </div>
             </div>
         </div>
@@ -298,8 +298,20 @@
                         <span>Sensor 4</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-color pump-indicator"></div>
-                        <span>Pump Active</span>
+                        <div class="legend-color" style="background: #4CAF50;"></div>
+                        <span>Pump 1 Active</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2196F3;"></div>
+                        <span>Pump 2 Active</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FF9800;"></div>
+                        <span>Pump 3 Active</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #9C27B0;"></div>
+                        <span>Pump 4 Active</span>
                     </div>
                 </div>
             </div>
@@ -310,8 +322,12 @@
         const API_BASE = window.location.origin;
         let humidityChart = null;
 
-        // Initialize the page
+        // Initialize the page and bind events (no inline handlers for CSP compliance)
         document.addEventListener('DOMContentLoaded', function() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            const loadBtn = document.getElementById('load-btn');
+            if (refreshBtn) refreshBtn.addEventListener('click', refreshData);
+            if (loadBtn) loadBtn.addEventListener('click', loadGraphData);
             loadGraphData();
         });
 
@@ -380,26 +396,33 @@
                 }
             }
 
-            // Add pump activity as background annotations
+            // Add per-pump activity as horizontal lanes (distinct colors) using a separate Y scale
             const pumpAnnotations = [];
+            const pumpColors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'];
             if (data.pump_activity) {
+                const now = new Date();
                 data.pump_activity.forEach(activity => {
+                    const pumpId = activity.pump_id;
+                    const pumpIndex = Math.max(0, Math.min(3, (pumpId || 1) - 1));
+                    const color = pumpColors[pumpIndex];
+                    const start = new Date(activity.start_time);
+                    const end = activity.end_time ? new Date(activity.end_time) : now;
                     pumpAnnotations.push({
                         type: 'box',
-                        xMin: new Date(activity.start_time),
-                        xMax: new Date(activity.end_time),
-                        yMin: 0,
-                        yMax: 1023,
-                        backgroundColor: 'rgba(255, 193, 7, 0.2)',
-                        borderColor: 'rgba(255, 193, 7, 0.5)',
+                        xScaleID: 'x',
+                        yScaleID: 'yPumps',
+                        xMin: start,
+                        xMax: end,
+                        yMin: pumpId - 0.4,
+                        yMax: pumpId + 0.4,
+                        backgroundColor: color + '33', // ~20% opacity
+                        borderColor: color + 'AA',
                         borderWidth: 1,
                         label: {
-                            content: `Pump ${activity.pump_id}`,
+                            content: `Pump ${pumpId}`,
                             position: 'start',
-                            color: '#ffc107',
-                            font: {
-                                size: 10
-                            }
+                            color: color,
+                            font: { size: 10 }
                         }
                     });
                 });
@@ -426,9 +449,7 @@
                                 weight: 'bold'
                             }
                         },
-                        legend: {
-                            display: false // We have custom legend
-                        },
+                        legend: { display: false },
                         annotation: {
                             annotations: pumpAnnotations
                         }
@@ -462,6 +483,20 @@
                                     return Math.round((value / 1023) * 100) + '%';
                                 }
                             }
+                        },
+                        // Hidden secondary scale for pump activity lanes
+                        yPumps: {
+                            position: 'right',
+                            min: 0,
+                            max: 4,
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return (value >= 1 && value <= 4) ? `Pump ${value}` : '';
+                                }
+                            },
+                            title: { display: true, text: 'Pump Activity' }
                         }
                     },
                     tooltips: {

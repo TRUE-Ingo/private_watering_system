@@ -38,9 +38,9 @@
 #define WATER_LEVEL_LOW_THRESHOLD 200  // Analog value threshold for low water (if using analog sensor)
 
 // Pump Runtime Protection
-#define MAX_PUMP_RUNTIME 60000  // Maximum pump runtime: 1 minute (60,000 ms)
+#define MAX_PUMP_RUNTIME 20000  // Maximum pump runtime: 1 minute (60,000 ms)
 #define PUMP_COOLDOWN_PERIOD 300000  // Cooldown period after max runtime: 5 minutes (300,000 ms)
-#define MAX_DAILY_PUMP_RUNTIME 600000  // Maximum total pump runtime per day: 10 minutes (600,000 ms)
+#define MAX_DAILY_PUMP_RUNTIME 300000  // Maximum total pump runtime per day: 10 minutes (600,000 ms)
 
 // Multiplexer Control Pins for CD74HC4067 (16-channel)
 #define MUX_S0_PIN 12  // D6 on ESP8266 - Channel select bit 0
